@@ -4,12 +4,13 @@ return {
   font = wezterm.font("JetBrains Mono"),
   font_size = 12,
   enable_tab_bar = false,
-  window_decorations = "NONE",
+  window_decorations = "RESIZE",
   window_padding = {
-    left = 0,
-    right = 0,
-    top = 0,
-    bottom = 0
+    left = "4px",
+    right = "4px",
+    top = "2px",
+    bottom = "2px"
   },
-  color_scheme = "Tokyo Night Storm",
+  use_resize_increments = true,
+  color_scheme = "Tokyo Night Storm"
 }
