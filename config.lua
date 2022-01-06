@@ -32,5 +32,5 @@ return {
     bottom = "2px"
   },
   use_resize_increments = true,
-  color_scheme = "Tokyo Night Storm"
+  color_scheme = "Catppuccin"
 }
