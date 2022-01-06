@@ -1,9 +1,11 @@
 local wezterm = require 'wezterm'
 
 return {
+  default_cursor_style = "BlinkingBlock",
   font = wezterm.font("JetBrainsMono Nerd Font"),
   font_size = 12,
   enable_tab_bar = false,
+  enable_wayland = true,
   window_decorations = "RESIZE",
   window_padding = {
     left = "4px",
