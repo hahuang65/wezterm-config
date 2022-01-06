@@ -1,6 +1,11 @@
 #!/bin/sh
 
 mkdir -p "${HOME}/.config/wezterm"
+mkdir -p "${HOME}/.config/wezterm/colors"
 
 ln -sf "${PWD}/config.lua" "${HOME}/.config/wezterm/wezterm.lua"
-ln -sf "${PWD}/colors" "${HOME}/.config/wezterm/colors"
+
+for color in colors/*.toml
+do
+    ln -sf "${PWD}/${color}" "${HOME}/.config/wezterm/colors/"
+done
