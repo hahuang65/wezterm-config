@@ -2,6 +2,13 @@ local wezterm = require 'wezterm'
 local io = require 'io';
 local os = require 'os';
 
+local a5_regex = "\\b([aA]5-\\d+)\\b"
+local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
+
+local function starts_with(str, start)
+   return str:sub(1, #start) == start
+end
+
 -- Useful keybinds:
 -- Scrollback: https://wezfurlong.org/wezterm/scrollback.html
 -- Ctrl-Shift-F to search scrollback
@@ -86,12 +93,32 @@ return {
     -- Scroll the scrollback
     {key="D", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=1}},
     {key="U", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=-1}},
+    -- Open browser with quickselect
+    -- https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
+    {key="O", mods="SHIFT|CTRL",
+      action=wezterm.action{QuickSelectArgs={
+        patterns={
+          "https?://\\S+",
+          a5_regex
+        },
+        action = wezterm.action_callback(function(window, pane)
+          local url = window:get_selection_text_for_pane(pane)
+          if starts_with(url, "A5-") or starts_with(url, "a5-") then
+            url = a5_base_url .. url
+          end
+
+          wezterm.log_info("Opening: " .. url)
+          wezterm.open_with(url)
+        end)
+      }
+    }
+   },
   },
   hyperlink_rules = {
     -- Make A5 Jira links clickable
     {
-      regex = "\\b[aA]5-(\\d+)\\b",
-      format = "https://alpha5sp.atlassian.net/browse/A5-$1"
+      regex = a5_regex,
+      format = a5_base_url .. "$1"
     }
   }
 }
