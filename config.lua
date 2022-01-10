@@ -91,7 +91,7 @@ return {
     -- Make A5 Jira links clickable
     {
       regex = "\\b[aA]5-(\\d+)\\b",
-      format = "https://alpha5sp.atlassian.net/browse/$1"
+      format = "https://alpha5sp.atlassian.net/browse/A5-$1"
     }
   }
 }
