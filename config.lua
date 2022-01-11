@@ -2,6 +2,23 @@ local wezterm = require 'wezterm'
 local io = require 'io';
 local os = require 'os';
 
+-- Boolean function that returns true of a string starts with the passed in argument.
+local function starts_with(str, start)
+   return str:sub(1, #start) == start
+end
+
+-- Captures output of an OS command to a string.
+function os.capture(cmd, raw)
+  local f = assert(io.popen(cmd, 'r'))
+  local s = assert(f:read('*a'))
+  f:close()
+  if raw then return s end
+  s = string.gsub(s, '^%s+', '')
+  s = string.gsub(s, '%s+$', '')
+  s = string.gsub(s, '[\n\r]+', ' ')
+  return s
+end
+
 local a5_regex = "\\b([aA]5-\\d+)\\b"
 local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
 local font_size = 12
@@ -20,23 +37,6 @@ end
 -- Ctrl-N/Ctrl-P to cycle thru search results
 -- Ctrl-E to open the scrollback in a nvim buffer (configured below)
 -- Ctrl-Shift-Space to open Quick Select https://wezfurlong.org/wezterm/quickselect.html
-
--- Boolean function that returns true of a string starts with the passed in argument.
-local function starts_with(str, start)
-   return str:sub(1, #start) == start
-end
-
--- Captures output of an OS command to a string.
-function os.capture(cmd, raw)
-  local f = assert(io.popen(cmd, 'r'))
-  local s = assert(f:read('*a'))
-  f:close()
-  if raw then return s end
-  s = string.gsub(s, '^%s+', '')
-  s = string.gsub(s, '%s+$', '')
-  s = string.gsub(s, '[\n\r]+', ' ')
-  return s
-end
 
 -- https://wezfurlong.org/wezterm/config/lua/wezterm/on.html
 wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
