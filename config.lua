@@ -4,9 +4,11 @@ local os = require 'os';
 
 local a5_regex = "\\b([aA]5-\\d+)\\b"
 local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
+local font_size = 12
+local os_name = os.capture 'uname'
 
-local function starts_with(str, start)
-   return str:sub(1, #start) == start
+if os_name == "Darwin" then
+  font_size = 16
 end
 
 -- Useful keybinds:
@@ -18,6 +20,23 @@ end
 -- Ctrl-N/Ctrl-P to cycle thru search results
 -- Ctrl-E to open the scrollback in a nvim buffer (configured below)
 -- Ctrl-Shift-Space to open Quick Select https://wezfurlong.org/wezterm/quickselect.html
+
+-- Boolean function that returns true of a string starts with the passed in argument.
+local function starts_with(str, start)
+   return str:sub(1, #start) == start
+end
+
+-- Captures output of an OS command to a string.
+function os.capture(cmd, raw)
+  local f = assert(io.popen(cmd, 'r'))
+  local s = assert(f:read('*a'))
+  f:close()
+  if raw then return s end
+  s = string.gsub(s, '^%s+', '')
+  s = string.gsub(s, '%s+$', '')
+  s = string.gsub(s, '[\n\r]+', ' ')
+  return s
+end
 
 -- https://wezfurlong.org/wezterm/config/lua/wezterm/on.html
 wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
@@ -48,27 +67,9 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   os.remove(name);
 end)
 
-function os.capture(cmd, raw)
-  local f = assert(io.popen(cmd, 'r'))
-  local s = assert(f:read('*a'))
-  f:close()
-  if raw then return s end
-  s = string.gsub(s, '^%s+', '')
-  s = string.gsub(s, '%s+$', '')
-  s = string.gsub(s, '[\n\r]+', ' ')
-  return s
-end
-
-local font_size = 12
-local os_name = os.capture 'uname'
-
-if os_name == "Darwin" then
-  font_size = 16
-end
-
 -- Ran into an issue in nightly build where Alt-` stopped working.
 -- It should be fixed now, but if it ever doesn't work, then
--- `use_dead_keys=true` should fix it.
+-- `use_dead_keys = true` should fix it.
 return {
   default_cursor_style = "BlinkingBlock",
   font = wezterm.font("JetBrainsMono Nerd Font"),
@@ -93,8 +94,7 @@ return {
     -- Scroll the scrollback
     {key="D", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=1}},
     {key="U", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=-1}},
-    -- Open browser with quickselect
-    -- https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
+    -- Open browser with quickselect https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
     {key="O", mods="SHIFT|CTRL",
       action=wezterm.action{QuickSelectArgs={
         patterns={
@@ -115,8 +115,7 @@ return {
    },
   },
   hyperlink_rules = {
-    -- Make A5 Jira links clickable
-    {
+    { -- Make A5 Jira links clickable
       regex = a5_regex,
       format = a5_base_url .. "$1"
     }
