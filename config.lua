@@ -92,8 +92,8 @@ return {
     -- search for things that look like git hashes
     {key="H", mods="SHIFT|CTRL", action=wezterm.action{Search={Regex="[a-f0-9]{6,}"}}},
     -- Scroll the scrollback
-    {key="D", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=1}},
-    {key="U", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=-1}},
+    {key="D", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=0.5}},
+    {key="U", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=-0.5}},
     -- Open browser with quickselect https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
     {key="O", mods="SHIFT|CTRL",
       action=wezterm.action{QuickSelectArgs={
