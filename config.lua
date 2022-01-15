@@ -23,9 +23,12 @@ local a5_regex = "\\b([aA]5-\\d+)\\b"
 local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
 local font_size = 12
 local os_name = os.capture 'uname'
+local hostname = os.capture 'cat /etc/hostname 2>/dev/null || hostname'
 
 if os_name == "Darwin" then
   font_size = 16
+elseif hostname == "bespin" then
+  font_size = 14
 end
 
 -- Useful keybinds:
