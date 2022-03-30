@@ -88,7 +88,7 @@ return {
   },
   use_resize_increments = true,
   color_scheme = "Catppuccin",
-  scrollback_lines = 5000,
+  scrollback_lines = 10000,
   keys = {
     -- Open scrollback in nvim
     {key="E", mods="SHIFT|CTRL", action=wezterm.action{EmitEvent="trigger-nvim-with-scrollback"}},
