@@ -75,7 +75,15 @@ end)
 -- `use_dead_keys = true` should fix it.
 return {
   default_cursor_style = "BlinkingBlock",
-  font = wezterm.font("JetBrainsMono Nerd Font"),
+  font = wezterm.font_with_fallback({
+    "JetBrainsMono Nerd Font",
+    "Noto Sans Symbols",
+    "Noto Sans Symbols2",
+    "Font Awesome 6 Brands",
+    "Font Awesome 6 Free",
+    "Font Awesome v4 Compatibility",
+    "FontAwesome",
+  }),
   font_size = font_size,
   enable_tab_bar = false,
   enable_wayland = true,
