@@ -75,6 +75,8 @@ end)
 -- `use_dead_keys = true` should fix it.
 return {
   default_cursor_style = "BlinkingBlock",
+  -- Troubleshoot fonts with `wezterm ls-fonts`
+  -- e.g. `wezterm ls-fonts --text "$(echo -e "\U0001f5d8")"` to find what font contains that glyph
   font = wezterm.font_with_fallback({
     "JetBrains Mono",
     "Noto Color Emoji",
