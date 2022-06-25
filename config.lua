@@ -76,13 +76,13 @@ end)
 return {
   default_cursor_style = "BlinkingBlock",
   font = wezterm.font_with_fallback({
-    "JetBrainsMono Nerd Font",
+    "JetBrains Mono",
+    "Noto Color Emoji",
+    "Symbols Nerd Font Mono",
+    "Powerline Extra Symbols",
     "Noto Sans Symbols",
     "Noto Sans Symbols2",
-    "Font Awesome 6 Brands",
-    "Font Awesome 6 Free",
-    "Font Awesome v4 Compatibility",
-    "FontAwesome",
+    "Font Awesome 6 Free"
   }),
   font_size = font_size,
   enable_tab_bar = false,
