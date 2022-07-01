@@ -79,13 +79,13 @@ return {
   -- e.g. `wezterm ls-fonts --text "$(echo -e "\U0001f5d8")"` to find what font contains that glyph
   font = wezterm.font_with_fallback({
     "JetBrains Mono",
+    "Noto Color Emoji",
+    "Symbols Nerd Font Mono",
+    "Powerline Extra Symbols",
     "codicon",
     "Noto Sans Symbols",
     "Noto Sans Symbols2",
-    "Font Awesome 6 Free",
-    "Noto Color Emoji",
-    "Symbols Nerd Font Mono",
-    "Powerline Extra Symbols"
+    "Font Awesome 6 Free"
   }),
   font_size = font_size,
   enable_tab_bar = false,
