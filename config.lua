@@ -33,6 +33,7 @@ end
 
 -- Useful keybinds:
 -- Scrollback: https://wezfurlong.org/wezterm/scrollback.html
+-- Ctrl-Shift-E to open scrollback in nvim
 -- Ctrl-Shift-F to search scrollback
 -- Ctrl-Shift-H to search for git hashes (implemented below)
 -- Ctrl-Shift-U to scroll back 1 page (implemented in keybinds)
@@ -40,6 +41,7 @@ end
 -- Ctrl-N/Ctrl-P to cycle thru search results
 -- Ctrl-E to open the scrollback in a nvim buffer (configured below)
 -- Ctrl-Shift-Space to open Quick Select https://wezfurlong.org/wezterm/quickselect.html
+-- Ctrl-Shift-X to open Copy Mode https://wezfurlong.org/wezterm/copymode.html
 
 -- https://wezfurlong.org/wezterm/config/lua/wezterm/on.html
 wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
