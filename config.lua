@@ -7,28 +7,16 @@ local function starts_with(str, start)
    return str:sub(1, #start) == start
 end
 
--- Captures output of an OS command to a string.
-function os.capture(cmd, raw)
-  local f = assert(io.popen(cmd, 'r'))
-  local s = assert(f:read('*a'))
-  f:close()
-  if raw then return s end
-  s = string.gsub(s, '^%s+', '')
-  s = string.gsub(s, '%s+$', '')
-  s = string.gsub(s, '[\n\r]+', ' ')
-  return s
-end
-
 local a5_regex = "\\b([aA]5-\\d+)\\b"
 local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
 local font_size = 12
-local os_name = os.capture 'uname'
-local hostname = os.capture 'cat /etc/hostname 2>/dev/null || hostname'
 
-if os_name == "Darwin" then
+if wezterm.target_triple == "x86_64-apple-darwin" then
   font_size = 16
-elseif hostname == "bespin" then
+elseif wezterm.hostname() == "bespin" then
   font_size = 14
+elseif wezterm.hostname() == "jedha" then
+  font_size = 12
 end
 
 -- Useful keybinds:
