@@ -60,6 +60,20 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   os.remove(name);
 end)
 
+-- Catppuccin Setup
+local catppuccin = require("colors/catppuccin").setup {
+	-- whether or not to sync with the system's theme
+	sync = false,
+	-- the flavours to switch between when syncing
+	-- available flavours: "latte" | "frappe" | "macchiato" | "mocha"
+	sync_flavours = {
+		light = "latte",
+		dark = "mocha"
+	},
+	-- the default/fallback flavour, when syncing is disabled
+	flavour = "mocha"
+}
+
 -- Ran into an issue in nightly build where Alt-` stopped working.
 -- It should be fixed now, but if it ever doesn't work, then
 -- `use_dead_keys = true` should fix it.
@@ -88,7 +102,7 @@ return {
     bottom = "2px"
   },
   use_resize_increments = true,
-  color_scheme = "Catppuccin",
+  colors = catppuccin,
   scrollback_lines = 10000,
   keys = {
     -- Open scrollback in nvim
