@@ -27,7 +27,6 @@ end
 -- Ctrl-Shift-U to scroll back 1 page (implemented in keybinds)
 -- Ctrl-Shift-D to scroll forward 1 page (implemented in keybinds)
 -- Ctrl-N/Ctrl-P to cycle thru search results
--- Ctrl-E to open the scrollback in a nvim buffer (configured below)
 -- Ctrl-Shift-Space to open Quick Select https://wezfurlong.org/wezterm/quickselect.html
 -- Ctrl-Shift-X to open Copy Mode https://wezfurlong.org/wezterm/copymode.html
 
