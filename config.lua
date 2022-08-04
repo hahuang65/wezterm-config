@@ -35,7 +35,7 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   -- Retrieve the current viewport's text.
   -- Pass an optional number of lines (eg: 2000) to retrieve
   -- that number of lines starting from the bottom of the viewport.
-  local scrollback = pane:get_lines_as_text();
+  local scrollback = pane:get_lines_as_text(2000);
 
   -- Create a temporary file to pass to vim
   local name = os.tmpname();
@@ -55,7 +55,7 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   -- a number.  We don't strictly need to remove this file, but it
   -- is nice to avoid cluttering up the temporary file directory
   -- location.
-  wezterm.sleep_ms(1000);
+  wezterm.sleep_ms(2000);
   os.remove(name);
 end)
 
