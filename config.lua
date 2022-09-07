@@ -12,7 +12,7 @@ local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
 local font_size = 12
 
 if wezterm.target_triple == "x86_64-apple-darwin" then
-  font_size = 16
+  font_size = 14
 elseif wezterm.hostname() == "bespin" then
   font_size = 14
 elseif wezterm.hostname() == "jedha" then
@@ -81,6 +81,7 @@ return {
   -- Troubleshoot fonts with `wezterm ls-fonts`
   -- e.g. `wezterm ls-fonts --text "$(echo -e "\U0001f5d8")"` to find what font contains that glyph
   font = wezterm.font_with_fallback({
+    "JetBrains Mono",
     "Iosevka",
     "Noto Color Emoji",
     "Symbols Nerd Font Mono",
