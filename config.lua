@@ -16,7 +16,7 @@ if wezterm.target_triple == "x86_64-apple-darwin" then
 elseif wezterm.hostname() == "bespin" then
   font_size = 14
 elseif wezterm.hostname() == "jedha" then
-  font_size = 13
+  font_size = 12
 end
 
 -- Useful keybinds:
