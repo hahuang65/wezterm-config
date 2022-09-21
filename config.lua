@@ -10,11 +10,13 @@ end
 local a5_regex = "\\b([aA]5-\\d+)\\b"
 local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
 local font_size = 12
+local primary_font = "JetBrains Mono"
 
 if wezterm.target_triple == "x86_64-apple-darwin" then
   font_size = 15
 elseif wezterm.hostname() == "bespin" then
   font_size = 14
+  primary_font = "Iosevka"
 elseif wezterm.hostname() == "jedha" then
   font_size = 12
 end
@@ -67,8 +69,7 @@ return {
   -- Troubleshoot fonts with `wezterm ls-fonts`
   -- e.g. `wezterm ls-fonts --text "$(echo -e "\U0001f5d8")"` to find what font contains that glyph
   font = wezterm.font_with_fallback({
-    "JetBrains Mono",
-    "Iosevka",
+    primary_font,
     "Noto Color Emoji",
     "Symbols Nerd Font Mono",
     "Powerline Extra Symbols",
