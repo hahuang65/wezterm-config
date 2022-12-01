@@ -19,6 +19,7 @@ elseif wezterm.hostname() == "bespin" then
   primary_font = "Iosevka"
 elseif wezterm.hostname() == "jedha" then
   font_size = 12
+  primary_font = "Iosevka"
 end
 
 -- Useful keybinds:
