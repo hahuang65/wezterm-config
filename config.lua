@@ -13,7 +13,7 @@ local font_size = 12
 local primary_font = "JetBrains Mono"
 
 if wezterm.target_triple == "x86_64-apple-darwin" then
-  font_size = 14
+  font_size = 16
   primary_font = "Iosevka"
 elseif wezterm.hostname() == "bespin" then
   font_size = 14
