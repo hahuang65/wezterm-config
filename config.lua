@@ -4,7 +4,7 @@ local os = require 'os';
 
 -- Boolean function that returns true of a string starts with the passed in argument.
 local function starts_with(str, start)
-   return str:sub(1, #start) == start
+  return str:sub(1, #start) == start
 end
 
 local a5_regex = "\\b([aA]5-\\d+)\\b"
@@ -49,8 +49,9 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   f:close();
 
   -- Open a new window running vim and tell it to open the file
-  window:perform_action(wezterm.action{SpawnCommandInNewWindow={
-    args={"nvim", name}}
+  window:perform_action(wezterm.action { SpawnCommandInNewWindow = {
+    args = { "nvim", name }
+  }
   }, pane)
 
   -- wait "enough" time for vim to read the file before we remove it.
@@ -95,16 +96,16 @@ return {
   scrollback_lines = 10000,
   keys = {
     -- Open scrollback in nvim
-    {key="E", mods="SHIFT|CTRL", action=wezterm.action{EmitEvent="trigger-nvim-with-scrollback"}},
+    { key = "E", mods = "SHIFT|CTRL", action = wezterm.action { EmitEvent = "trigger-nvim-with-scrollback" } },
     -- search for things that look like git hashes
-    {key="H", mods="SHIFT|CTRL", action=wezterm.action{Search={Regex="[a-f0-9]{6,}"}}},
+    { key = "H", mods = "SHIFT|CTRL", action = wezterm.action { Search = { Regex = "[a-f0-9]{6,}" } } },
     -- Scroll the scrollback
-    {key="D", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=0.5}},
-    {key="U", mods="SHIFT|CTRL", action=wezterm.action{ScrollByPage=-0.5}},
+    { key = "D", mods = "SHIFT|CTRL", action = wezterm.action { ScrollByPage = 0.5 } },
+    { key = "U", mods = "SHIFT|CTRL", action = wezterm.action { ScrollByPage = -0.5 } },
     -- Open browser with quickselect https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
-    {key="O", mods="SHIFT|CTRL",
-      action=wezterm.action{QuickSelectArgs={
-        patterns={
+    { key = "O", mods = "SHIFT|CTRL",
+      action = wezterm.action { QuickSelectArgs = {
+        patterns = {
           "https?://\\S+",
           a5_regex
         },
@@ -118,8 +119,8 @@ return {
           wezterm.open_with(url)
         end)
       }
-    }
-   },
+      }
+    },
   },
   hyperlink_rules = {
     { -- Make A5 Jira links clickable
