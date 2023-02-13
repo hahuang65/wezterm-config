@@ -1,6 +1,6 @@
-local wezterm = require 'wezterm'
-local io = require 'io';
-local os = require 'os';
+local wezterm = require("wezterm")
+local io = require("io")
+local os = require("os")
 
 -- Boolean function that returns true of a string starts with the passed in argument.
 local function starts_with(str, start)
@@ -39,20 +39,24 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   -- Retrieve the current viewport's text.
   -- Pass an optional number of lines (eg: 2000) to retrieve
   -- that number of lines starting from the bottom of the viewport.
-  local scrollback = pane:get_lines_as_text(2000);
+  local scrollback = pane:get_lines_as_text(2000)
 
   -- Create a temporary file to pass to vim
-  local name = os.tmpname();
-  local f = io.open(name, "w+");
-  f:write(scrollback);
-  f:flush();
-  f:close();
+  local name = os.tmpname()
+  local f = io.open(name, "w+")
+  f:write(scrollback)
+  f:flush()
+  f:close()
 
   -- Open a new window running vim and tell it to open the file
-  window:perform_action(wezterm.action { SpawnCommandInNewWindow = {
-    args = { "nvim", name }
-  }
-  }, pane)
+  window:perform_action(
+    wezterm.action({
+      SpawnCommandInNewWindow = {
+        args = { "nvim", name },
+      },
+    }),
+    pane
+  )
 
   -- wait "enough" time for vim to read the file before we remove it.
   -- The window creation and process spawn are asynchronous
@@ -60,8 +64,8 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   -- a number.  We don't strictly need to remove this file, but it
   -- is nice to avoid cluttering up the temporary file directory
   -- location.
-  wezterm.sleep_ms(2000);
-  os.remove(name);
+  wezterm.sleep_ms(2000)
+  os.remove(name)
 end)
 
 -- Ran into an issue in nightly build where Alt-` stopped working.
@@ -79,7 +83,7 @@ return {
     "codicon",
     "Noto Sans Symbols",
     "Noto Sans Symbols2",
-    "Font Awesome 6 Free"
+    "Font Awesome 6 Free",
   }),
   font_size = font_size,
   enable_tab_bar = false,
@@ -89,43 +93,91 @@ return {
     left = "4px",
     right = "4px",
     top = "2px",
-    bottom = "2px"
+    bottom = "2px",
   },
   use_resize_increments = true,
   color_scheme = "Catppuccin Mocha",
   scrollback_lines = 10000,
   keys = {
     -- Open scrollback in nvim
-    { key = "E", mods = "SHIFT|CTRL", action = wezterm.action { EmitEvent = "trigger-nvim-with-scrollback" } },
+    { key = "E", mods = "SHIFT|CTRL", action = wezterm.action({ EmitEvent = "trigger-nvim-with-scrollback" }) },
     -- search for things that look like git hashes
-    { key = "H", mods = "SHIFT|CTRL", action = wezterm.action { Search = { Regex = "[a-f0-9]{6,}" } } },
+    { key = "H", mods = "SHIFT|CTRL", action = wezterm.action({ Search = { Regex = "[a-f0-9]{6,}" } }) },
     -- Scroll the scrollback
-    { key = "D", mods = "SHIFT|CTRL", action = wezterm.action { ScrollByPage = 0.5 } },
-    { key = "U", mods = "SHIFT|CTRL", action = wezterm.action { ScrollByPage = -0.5 } },
+    { key = "D", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = 0.5 }) },
+    { key = "U", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = -0.5 }) },
     -- Open browser with quickselect https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
-    { key = "O", mods = "SHIFT|CTRL",
-      action = wezterm.action { QuickSelectArgs = {
-        patterns = {
-          "https?://\\S+",
-          a5_regex
-        },
-        action = wezterm.action_callback(function(window, pane)
-          local url = window:get_selection_text_for_pane(pane)
-          if starts_with(url, "A5-") or starts_with(url, "a5-") then
-            url = a5_base_url .. url
-          end
+    {
+      key = "O",
+      mods = "SHIFT|CTRL",
+      action = wezterm.action({
+        QuickSelectArgs = {
+          patterns = {
+            "\\b\\w+://[\\w.-]+\\.[a-z]{2,15}\\S*\\b",
+            a5_regex,
+          },
+          action = wezterm.action_callback(function(window, pane)
+            local url = window:get_selection_text_for_pane(pane)
+            if starts_with(url, "A5-") or starts_with(url, "a5-") then
+              url = a5_base_url .. url
+            end
 
-          wezterm.log_info("Opening: " .. url)
-          wezterm.open_with(url)
-        end)
-      }
-      }
+            wezterm.log_info("Opening: " .. url)
+            wezterm.open_with(url)
+          end),
+        },
+      }),
     },
   },
   hyperlink_rules = {
-    { -- Make A5 Jira links clickable
+    -- Linkify things that look like URLs and the host has a TLD name.
+    -- Compiled-in default. Used if you don't specify any hyperlink_rules.
+    {
+      regex = "\\b\\w+://[\\w.-]+\\.[a-z]{2,15}\\S*\\b",
+      format = "$0",
+    },
+
+    -- linkify email addresses
+    -- Compiled-in default. Used if you don't specify any hyperlink_rules.
+    {
+      regex = [[\b\w+@[\w-]+(\.[\w-]+)+\b]],
+      format = "mailto:$0",
+    },
+
+    -- file:// URI
+    -- Compiled-in default. Used if you don't specify any hyperlink_rules.
+    {
+      regex = [[\bfile://\S*\b]],
+      format = "$0",
+    },
+
+    -- Linkify things that look like URLs with numeric addresses as hosts.
+    -- E.g. http://127.0.0.1:8000 for a local development server,
+    -- or http://192.168.1.1 for the web interface of many routers.
+    {
+      regex = [[\b\w+://(?:[\d]{1,3}\.){3}[\d]{1,3}\S*\b]],
+      format = "$0",
+    },
+
+    -- Make task numbers clickable
+    -- The first matched regex group is captured in $1.
+    {
+      regex = [[\b[tT](\d+)\b]],
+      format = "https://example.com/tasks/?t=$1",
+    },
+
+    -- Make username/project paths clickable. This implies paths like the following are for GitHub.
+    -- ( "nvim-treesitter/nvim-treesitter" | wbthomason/packer.nvim | wez/wezterm | "wez/wezterm.git" )
+    -- As long as a full URL hyperlink regex exists above this it should not match a full URL to
+    -- GitHub or GitLab / BitBucket (i.e. https://gitlab.com/user/project.git is still a whole clickable URL)
+    {
+      regex = [[["]?([\w\d]{1}[-\w\d]+)(/){1}([-\w\d\.]+)["]?]],
+      format = "https://www.github.com/$1/$3",
+    },
+    -- Make A5 Jira links clickable
+    {
       regex = a5_regex,
-      format = a5_base_url .. "$1"
-    }
-  }
+      format = a5_base_url .. "$1",
+    },
+  },
 }
