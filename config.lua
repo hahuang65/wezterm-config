@@ -16,8 +16,8 @@ if wezterm.target_triple == "x86_64-apple-darwin" then
   font_size = 16
   primary_font = "Iosevka"
 elseif wezterm.hostname() == "bespin" then
-  font_size = 16
-  primary_font = "Iosevka"
+  font_size = 18
+  primary_font = "Fira Code"
 elseif wezterm.hostname() == "jedha" then
   font_size = 12
   primary_font = "Iosevka"
