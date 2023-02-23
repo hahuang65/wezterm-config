@@ -9,18 +9,15 @@ end
 
 local a5_regex = "\\b([aA]5-\\d+)\\b"
 local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
-local font_size = 12
-local primary_font = "JetBrains Mono"
+local font_size = 16
+local primary_font = "Iosevka"
 
 if wezterm.target_triple == "x86_64-apple-darwin" then
-  font_size = 16
-  primary_font = "Iosevka"
+  -- Custom options for macOS
 elseif wezterm.hostname() == "bespin" then
-  font_size = 16
-  primary_font = "Iosevka"
-elseif wezterm.hostname() == "jedha" then
+  -- Custom options for bespin
+elseif wezterm.hostname() == "endor" then
   font_size = 12
-  primary_font = "Iosevka"
 end
 
 -- Useful keybinds:
