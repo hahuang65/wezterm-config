@@ -14,8 +14,9 @@ local primary_font = "Iosevka"
 
 if wezterm.target_triple == "x86_64-apple-darwin" then
   -- Custom options for macOS
-elseif wezterm.hostname() == "bespin" then
-  -- Custom options for bespin
+elseif wezterm.hostname() == "ilum" then
+  -- Custom options for ilum
+  font_size = 18
 elseif wezterm.hostname() == "endor" then
   font_size = 12
 end
