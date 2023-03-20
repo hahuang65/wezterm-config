@@ -71,9 +71,11 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
   -- Create a temporary file to pass to vim
   local name = os.tmpname()
   local f = io.open(name, "w+")
-  f:write(scrollback)
-  f:flush()
-  f:close()
+  if f ~= nil then
+    f:write(scrollback)
+    f:flush()
+    f:close()
+  end
 
   -- Open a new window running vim and tell it to open the file
   window:perform_action(
