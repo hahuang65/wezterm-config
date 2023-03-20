@@ -7,11 +7,40 @@ local function starts_with(str, start)
   return str:sub(1, #start) == start
 end
 
-local a5_regex = "\\b([aA]5-\\d+)\\b"
 local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
+
+local hyperlink_rules = wezterm.default_hyperlink_rules()
+local hyperlink_regexes = {}
+for _, rule in ipairs({
+  -- Things that look like URLs with numeric addresses as hosts.
+  -- E.g. http://127.0.0.1:8000 for a local development server,
+  -- or http://192.168.1.1 for the web interface of many routers.
+  {
+    regex = [[\b\w+://(?:[\d]{1,3}\.){3}[\d]{1,3}\S*\b]],
+    format = "$0",
+  },
+
+  -- Things with localhost addresses.
+  {
+    regex = "\\bhttp://localhost:[0-9]+(?:/\\S*)?\\b",
+    format = "$0",
+  },
+
+  -- A5 Jira tickets
+  {
+    regex = "\\b([aA]5-\\d+)\\b",
+    format = a5_base_url .. "$1",
+  },
+}) do
+  table.insert(hyperlink_rules, rule)
+end
+
+for _, v in ipairs(hyperlink_rules) do
+  table.insert(hyperlink_regexes, v["regex"])
+end
+
 local font_size = 16
 local primary_font = "Iosevka"
-
 if wezterm.target_triple == "x86_64-apple-darwin" then
   -- Custom options for macOS
 elseif wezterm.hostname() == "ilum" then
@@ -111,10 +140,7 @@ return {
       mods = "SHIFT|CTRL",
       action = wezterm.action({
         QuickSelectArgs = {
-          patterns = {
-            "\\b\\w+://[\\w.-]+\\.[a-z]{2,15}\\S*\\b",
-            a5_regex,
-          },
+          patterns = hyperlink_regexes,
           action = wezterm.action_callback(function(window, pane)
             local url = window:get_selection_text_for_pane(pane)
             if starts_with(url, "A5-") or starts_with(url, "a5-") then
@@ -128,40 +154,5 @@ return {
       }),
     },
   },
-  hyperlink_rules = {
-    -- Linkify things that look like URLs and the host has a TLD name.
-    -- Compiled-in default. Used if you don't specify any hyperlink_rules.
-    {
-      regex = "\\b\\w+://[\\w.-]+\\.[a-z]{2,15}\\S*\\b",
-      format = "$0",
-    },
-
-    -- linkify email addresses
-    -- Compiled-in default. Used if you don't specify any hyperlink_rules.
-    {
-      regex = [[\b\w+@[\w-]+(\.[\w-]+)+\b]],
-      format = "mailto:$0",
-    },
-
-    -- file:// URI
-    -- Compiled-in default. Used if you don't specify any hyperlink_rules.
-    {
-      regex = [[\bfile://\S*\b]],
-      format = "$0",
-    },
-
-    -- Linkify things that look like URLs with numeric addresses as hosts.
-    -- E.g. http://127.0.0.1:8000 for a local development server,
-    -- or http://192.168.1.1 for the web interface of many routers.
-    {
-      regex = [[\b\w+://(?:[\d]{1,3}\.){3}[\d]{1,3}\S*\b]],
-      format = "$0",
-    },
-
-    -- Make A5 Jira links clickable
-    {
-      regex = a5_regex,
-      format = a5_base_url .. "$1",
-    },
-  },
+  hyperlink_rules = hyperlink_rules,
 }
