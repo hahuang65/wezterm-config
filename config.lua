@@ -45,7 +45,7 @@ if wezterm.target_triple == "x86_64-apple-darwin" then
   -- Custom options for macOS
 elseif wezterm.hostname() == "ilum" then
   -- Custom options for ilum
-  font_size = 18
+  font_size = 14
 elseif wezterm.hostname() == "endor" then
   font_size = 12
 end
