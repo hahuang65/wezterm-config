@@ -45,7 +45,7 @@ if wezterm.target_triple == "x86_64-apple-darwin" then
   -- Custom options for macOS
 elseif wezterm.hostname() == "ilum" then
   -- Custom options for ilum
-  font_size = 14
+  font_size = 16
 elseif wezterm.hostname() == "endor" then
   font_size = 12
 end
@@ -107,13 +107,13 @@ return {
   -- e.g. `wezterm ls-fonts --text "$(echo -e "\U0001f5d8")"` to find what font contains that glyph
   font = wezterm.font_with_fallback({
     primary_font,
-    { family = "Noto Color Emoji", scale = 0.75 },
-    { family = "Symbols Nerd Font Mono", scale = 0.75 },
+    { family = "Noto Color Emoji",        scale = 0.75 },
+    { family = "Symbols Nerd Font Mono",  scale = 0.75 },
     { family = "Powerline Extra Symbols", scale = 0.75 },
-    { family = "codicon", scale = 0.75 },
-    { family = "Noto Sans Symbols", scale = 0.75 },
-    { family = "Noto Sans Symbols2", scale = 0.75 },
-    { family = "Font Awesome 6 Free", scale = 0.75 },
+    { family = "codicon",                 scale = 0.75 },
+    { family = "Noto Sans Symbols",       scale = 0.75 },
+    { family = "Noto Sans Symbols2",      scale = 0.75 },
+    { family = "Font Awesome 6 Free",     scale = 0.75 },
   }),
   font_size = font_size,
   enable_tab_bar = false,
