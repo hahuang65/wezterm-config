@@ -40,7 +40,7 @@ for _, v in ipairs(hyperlink_rules) do
 end
 
 local font_size = 16
-local primary_font = "Iosevka"
+local primary_font = "CommitMono"
 if wezterm.target_triple == "x86_64-apple-darwin" then
   -- Custom options for macOS
 elseif wezterm.hostname() == "ilum" then
