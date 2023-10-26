@@ -39,15 +39,16 @@ for _, v in ipairs(hyperlink_rules) do
   table.insert(hyperlink_regexes, v["regex"])
 end
 
-local font_size = 16
 local primary_font = "Iosevka"
-if wezterm.target_triple == "x86_64-apple-darwin" then
-  font_size = 16
-elseif wezterm.hostname() == "ilum" then
-  font_size = 14
-elseif wezterm.hostname() == "endor" then
-  font_size = 12
-end
+local font_size = (setmetatable({
+  ["ilum"] = 14,
+  ["endor"] = 12,
+  ["6649L06"] = 14,
+}, {
+  __index = function()
+    return 16 -- Default value
+  end,
+}))[wezterm.hostname()]
 
 -- Useful keybinds:
 -- Scrollback: https://wezfurlong.org/wezterm/scrollback.html
