@@ -43,7 +43,7 @@ local primary_font = "Iosevka"
 local font_size = (setmetatable({
   ["ilum"] = 12,
   ["endor"] = 12,
-  ["6649L06"] = 14,
+  ["6649L06"] = 16,
 }, {
   __index = function()
     return 16 -- Default value
