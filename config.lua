@@ -50,6 +50,11 @@ local font_size = (setmetatable({
   end,
 }))[wezterm.hostname()]
 
+local decorations = "RESIZE"
+if wezterm.target_triple == "x86_64-unknown-linux-gnu" then
+  decorations = "NONE"
+end
+
 -- Useful keybinds:
 -- Scrollback: https://wezfurlong.org/wezterm/scrollback.html
 -- Ctrl-Shift-E to open scrollback in nvim
@@ -119,7 +124,7 @@ return {
   enable_tab_bar = false,
   enable_wayland = true,
   front_end = "OpenGL",
-  window_decorations = "NONE",
+  window_decorations = decorations,
   window_padding = {
     left = "4px",
     right = "4px",
