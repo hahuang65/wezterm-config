@@ -119,7 +119,7 @@ return {
   enable_tab_bar = false,
   enable_wayland = true,
   front_end = "OpenGL",
-  window_decorations = "RESIZE",
+  window_decorations = "NONE",
   window_padding = {
     left = "4px",
     right = "4px",
