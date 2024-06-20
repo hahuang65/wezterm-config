@@ -121,7 +121,8 @@ return {
     { family = "Font Awesome 6 Free", scale = 0.75 },
   }),
   font_size = font_size,
-  enable_tab_bar = false,
+  enable_tab_bar = true,
+  hide_tab_bar_if_only_one_tab = true,
   enable_wayland = true,
   front_end = "OpenGL",
   window_decorations = decorations,
@@ -134,6 +135,7 @@ return {
   use_resize_increments = true,
   color_scheme = "Catppuccin Mocha",
   scrollback_lines = 10000,
+  window_close_confirmation = "NeverPrompt",
   keys = {
     -- Open scrollback in nvim
     { key = "E", mods = "SHIFT|CTRL", action = wezterm.action({ EmitEvent = "trigger-nvim-with-scrollback" }) },
