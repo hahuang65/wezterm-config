@@ -162,6 +162,16 @@ return {
         },
       }),
     },
+    {
+      key = "N",
+      mods = "SHIFT|CTRL",
+      action = wezterm.action.DisableDefaultAssignment,
+    },
+    {
+      key = "P",
+      mods = "SHIFT|CTRL",
+      action = wezterm.action.DisableDefaultAssignment,
+    },
   },
   hyperlink_rules = hyperlink_rules,
 }
