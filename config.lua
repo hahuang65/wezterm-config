@@ -132,7 +132,6 @@ return {
     top = "2px",
     bottom = "2px",
   },
-  use_resize_increments = true,
   color_scheme = "Catppuccin Mocha",
   scrollback_lines = 10000,
   window_close_confirmation = "NeverPrompt",
