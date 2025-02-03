@@ -39,7 +39,7 @@ for _, v in ipairs(hyperlink_rules) do
   table.insert(hyperlink_regexes, v["regex"])
 end
 
-local primary_font = "Departure Mono"
+local primary_font = "JetBrains Mono"
 local font_size = (setmetatable({
   ["ilum"] = 12,
   ["endor"] = 12,
