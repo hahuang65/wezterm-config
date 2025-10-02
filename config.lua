@@ -43,10 +43,9 @@ local primary_font = "Maple Mono"
 local font_size = (setmetatable({
   ["ilum"] = 12,
   ["endor"] = 12,
-  ["6649L06"] = 16,
 }, {
   __index = function()
-    return 16 -- Default value
+    return 14 -- Default value
   end,
 }))[wezterm.hostname()]
 
