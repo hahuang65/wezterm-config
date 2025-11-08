@@ -43,6 +43,7 @@ local primary_font = "Maple Mono"
 local font_size = (setmetatable({
   ["ilum"] = 12,
   ["endor"] = 12,
+  ["LT-G3JQ7FH65V"] = 16,
 }, {
   __index = function()
     return 14 -- Default value
