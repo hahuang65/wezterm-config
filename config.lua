@@ -2,6 +2,13 @@ local wezterm = require("wezterm")
 local io = require("io")
 local os = require("os")
 
+-- Define variables that can be overridden by local config
+local variables = {
+  primary_font = "Maple Mono",
+  font_size = 14,
+  decorations = "RESIZE",
+}
+
 -- Boolean function that returns true of a string starts with the passed in argument.
 local function starts_with(str, start)
   return str:sub(1, #start) == start
@@ -39,21 +46,37 @@ for _, v in ipairs(hyperlink_rules) do
   table.insert(hyperlink_regexes, v["regex"])
 end
 
-local primary_font = "Maple Mono"
-local font_size = (setmetatable({
-  ["ilum"] = 12,
-  ["endor"] = 12,
-  ["LT-G3JQ7FH65V"] = 16,
-}, {
-  __index = function()
-    return 14 -- Default value
-  end,
-}))[wezterm.hostname()]
-
-local decorations = "RESIZE"
 if wezterm.target_triple == "x86_64-unknown-linux-gnu" then
-  decorations = "NONE"
+  variables.decorations = "NONE"
 end
+
+-- Load local variable overrides if they exist
+local function merge_variables(base, override)
+  for key, value in pairs(override) do
+    if type(base[key]) == "table" and type(value) == "table" then
+      -- For tables, append instead of replace
+      for _, v in ipairs(value) do
+        table.insert(base[key], v)
+      end
+    else
+      -- For non-tables, replace
+      base[key] = value
+    end
+  end
+end
+
+local local_config_path = os.getenv("HOME") .. "/.config/wezterm/wezterm.local.lua"
+local local_config_file = io.open(local_config_path, "r")
+if local_config_file then
+  local_config_file:close()
+  local local_variables = dofile(local_config_path)
+  merge_variables(variables, local_variables)
+end
+
+-- Extract variables for convenience
+local primary_font = variables.primary_font
+local font_size = variables.font_size
+local decorations = variables.decorations
 
 -- Useful keybinds:
 -- Scrollback: https://wezfurlong.org/wezterm/scrollback.html
