@@ -2,19 +2,43 @@ local wezterm = require("wezterm")
 local io = require("io")
 local os = require("os")
 
--- Define variables that can be overridden by local config
-local variables = {
-  primary_font = "Maple Mono",
-  font_size = 14,
-  decorations = "RESIZE",
-}
-
 -- Boolean function that returns true of a string starts with the passed in argument.
 local function starts_with(str, start)
   return str:sub(1, #start) == start
 end
 
-local a5_base_url = "https://alpha5sp.atlassian.net/browse/"
+-- Default variables (can be overridden by local config)
+local primary_font = "Maple Mono"
+local decorations = "RESIZE"
+if wezterm.target_triple == "x86_64-unknown-linux-gnu" then
+  decorations = "NONE"
+end
+local url_transforms = {}
+
+-- Try to load local config module
+local local_config
+local ok, result = pcall(function()
+  return require("local")
+end)
+
+if ok then
+  local_config = result
+  -- Override variables if exported by local module
+
+  if local_config.primary_font then
+    primary_font = local_config.primary_font
+  end
+
+  if local_config.decorations then
+    decorations = local_config.decorations
+  end
+
+  if local_config.url_transforms then
+    for _, transform in ipairs(local_config.url_transforms) do
+      table.insert(url_transforms, transform)
+    end
+  end
+end
 
 local hyperlink_rules = wezterm.default_hyperlink_rules()
 local hyperlink_regexes = {}
@@ -32,12 +56,6 @@ for _, rule in ipairs({
     regex = "\\bhttp://localhost:[0-9]+(?:/\\S*)?\\b",
     format = "$0",
   },
-
-  -- A5 Jira tickets
-  {
-    regex = "\\b([aA]5-\\d+)\\b",
-    format = a5_base_url .. "$1",
-  },
 }) do
   table.insert(hyperlink_rules, rule)
 end
@@ -46,37 +64,13 @@ for _, v in ipairs(hyperlink_rules) do
   table.insert(hyperlink_regexes, v["regex"])
 end
 
-if wezterm.target_triple == "x86_64-unknown-linux-gnu" then
-  variables.decorations = "NONE"
-end
-
--- Load local variable overrides if they exist
-local function merge_variables(base, override)
-  for key, value in pairs(override) do
-    if type(base[key]) == "table" and type(value) == "table" then
-      -- For tables, append instead of replace
-      for _, v in ipairs(value) do
-        table.insert(base[key], v)
-      end
-    else
-      -- For non-tables, replace
-      base[key] = value
-    end
+-- Append local hyperlink rules if available
+if local_config and local_config.hyperlink_rules then
+  for _, rule in ipairs(local_config.hyperlink_rules) do
+    table.insert(hyperlink_rules, rule)
+    table.insert(hyperlink_regexes, rule.regex)
   end
 end
-
-local local_config_path = os.getenv("HOME") .. "/.config/wezterm/wezterm.local.lua"
-local local_config_file = io.open(local_config_path, "r")
-if local_config_file then
-  local_config_file:close()
-  local local_variables = dofile(local_config_path)
-  merge_variables(variables, local_variables)
-end
-
--- Extract variables for convenience
-local primary_font = variables.primary_font
-local font_size = variables.font_size
-local decorations = variables.decorations
 
 -- Useful keybinds:
 -- Scrollback: https://wezfurlong.org/wezterm/scrollback.html
@@ -128,75 +122,89 @@ end)
 -- Ran into an issue in nightly build where Alt-` stopped working.
 -- It should be fixed now, but if it ever doesn't work, then
 -- `use_dead_keys = true` should fix it.
-return {
-  default_cursor_style = "BlinkingBlock",
-  hide_mouse_cursor_when_typing = false,
-  -- Troubleshoot fonts with `wezterm ls-fonts`
-  -- e.g. `wezterm ls-fonts --text "$(echo -e "\U0001f5d8")"` to find what font contains that glyph
-  font = wezterm.font_with_fallback({
-    primary_font,
-    { family = "Noto Color Emoji", scale = 0.75 },
-    { family = "Symbols Nerd Font Mono", scale = 0.75 },
-    { family = "Powerline Extra Symbols", scale = 0.75 },
-    { family = "codicon", scale = 0.75 },
-    { family = "Noto Sans Symbols", scale = 0.75 },
-    { family = "Noto Sans Symbols2", scale = 0.75 },
-    { family = "Font Awesome 6 Free", scale = 0.75 },
-  }),
-  font_size = font_size,
-  enable_tab_bar = true,
-  hide_tab_bar_if_only_one_tab = true,
-  enable_wayland = true,
-  front_end = "OpenGL",
-  window_decorations = decorations,
-  window_padding = {
-    left = "4px",
-    right = "4px",
-    top = "2px",
-    bottom = "2px",
-  },
-  color_scheme = "Catppuccin Mocha",
-  scrollback_lines = 10000,
-  window_close_confirmation = "NeverPrompt",
-  keys = {
-    -- Open scrollback in nvim
-    { key = "E", mods = "SHIFT|CTRL", action = wezterm.action({ EmitEvent = "trigger-nvim-with-scrollback" }) },
-    -- search for things that look like git hashes
-    { key = "H", mods = "SHIFT|CTRL", action = wezterm.action({ Search = { Regex = "[a-f0-9]{6,}" } }) },
-    -- Scroll the scrollback
-    { key = "D", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = 0.5 }) },
-    { key = "U", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = -0.5 }) },
-    -- Open browser with quickselect https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
-    {
-      key = "O",
-      mods = "SHIFT|CTRL",
-      action = wezterm.action({
-        QuickSelectArgs = {
-          patterns = hyperlink_regexes,
-          action = wezterm.action_callback(function(window, pane)
-            local url = window:get_selection_text_for_pane(pane)
-            if starts_with(url, "A5-") or starts_with(url, "a5-") then
-              url = a5_base_url .. url
-            end
+local config = wezterm.config_builder()
 
-            wezterm.log_info("Opening: " .. url)
-            wezterm.open_with(url)
-          end),
-        },
-      }),
-    },
-    {
-      key = "N",
-      mods = "SHIFT|CTRL",
-      action = wezterm.action.DisableDefaultAssignment,
-    },
-    {
-      key = "P",
-      mods = "SHIFT|CTRL",
-      action = wezterm.action.DisableDefaultAssignment,
-    },
-    { key = "PageUp", action = wezterm.action.ScrollByPage(-0.33) },
-    { key = "PageDown", action = wezterm.action.ScrollByPage(0.33) },
-  },
-  hyperlink_rules = hyperlink_rules,
+config.default_cursor_style = "BlinkingBlock"
+config.hide_mouse_cursor_when_typing = false
+-- Troubleshoot fonts with `wezterm ls-fonts`
+-- e.g. `wezterm ls-fonts --text "$(echo -e "\U0001f5d8")"` to find what font contains that glyph
+config.font = wezterm.font_with_fallback({
+  primary_font,
+  { family = "Noto Color Emoji", scale = 0.75 },
+  { family = "Symbols Nerd Font Mono", scale = 0.75 },
+  { family = "Powerline Extra Symbols", scale = 0.75 },
+  { family = "codicon", scale = 0.75 },
+  { family = "Noto Sans Symbols", scale = 0.75 },
+  { family = "Noto Sans Symbols2", scale = 0.75 },
+  { family = "Font Awesome 6 Free", scale = 0.75 },
+})
+config.font_size = 14
+config.enable_tab_bar = true
+config.hide_tab_bar_if_only_one_tab = true
+config.enable_wayland = true
+config.front_end = "OpenGL"
+config.window_decorations = decorations
+config.window_padding = {
+  left = "4px",
+  right = "4px",
+  top = "2px",
+  bottom = "2px",
 }
+config.color_scheme = "Catppuccin Mocha"
+config.scrollback_lines = 10000
+config.window_close_confirmation = "NeverPrompt"
+config.keys = {
+  -- Open scrollback in nvim
+  { key = "E", mods = "SHIFT|CTRL", action = wezterm.action({ EmitEvent = "trigger-nvim-with-scrollback" }) },
+  -- search for things that look like git hashes
+  { key = "H", mods = "SHIFT|CTRL", action = wezterm.action({ Search = { Regex = "[a-f0-9]{6,}" } }) },
+  -- Scroll the scrollback
+  { key = "D", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = 0.5 }) },
+  { key = "U", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = -0.5 }) },
+  -- Open browser with quickselect https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
+  {
+    key = "O",
+    mods = "SHIFT|CTRL",
+    action = wezterm.action({
+      QuickSelectArgs = {
+        patterns = hyperlink_regexes,
+        action = wezterm.action_callback(function(window, pane)
+          local url = window:get_selection_text_for_pane(pane)
+
+          -- Apply URL transforms
+          for _, transform in ipairs(url_transforms) do
+            for _, prefix in ipairs(transform.prefixes) do
+              if starts_with(url, prefix) then
+                url = transform.format(url)
+                break
+              end
+            end
+          end
+
+          wezterm.log_info("Opening: " .. url)
+          wezterm.open_with(url)
+        end),
+      },
+    }),
+  },
+  {
+    key = "N",
+    mods = "SHIFT|CTRL",
+    action = wezterm.action.DisableDefaultAssignment,
+  },
+  {
+    key = "P",
+    mods = "SHIFT|CTRL",
+    action = wezterm.action.DisableDefaultAssignment,
+  },
+  { key = "PageUp", action = wezterm.action.ScrollByPage(-0.33) },
+  { key = "PageDown", action = wezterm.action.ScrollByPage(0.33) },
+}
+config.hyperlink_rules = hyperlink_rules
+
+-- Apply local config overrides if available
+if local_config and local_config.apply_to_config then
+  local_config.apply_to_config(config)
+end
+
+return config
