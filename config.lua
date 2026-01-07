@@ -11,7 +11,12 @@ end
 local primary_font = "Maple Mono"
 local decorations = "RESIZE"
 if wezterm.target_triple == "x86_64-unknown-linux-gnu" then
-  decorations = "NONE"
+  local desktop = os.getenv("XDG_CURRENT_DESKTOP"):lower()
+  if desktop:lower() == "sway" then
+    decorations = "NONE"
+  else
+    decorations = "TITLE | RESIZE"
+  end
 end
 local url_transforms = {}
 
