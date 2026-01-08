@@ -206,6 +206,8 @@ config.keys = {
   { key = "PageDown", action = wezterm.action.ScrollByPage(0.33) },
 }
 config.hyperlink_rules = hyperlink_rules
+config.initial_cols = 160
+config.initial_rows = 48
 
 -- Apply local config overrides if available
 if local_config and local_config.apply_to_config then
