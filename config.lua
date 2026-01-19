@@ -11,7 +11,7 @@ end
 local primary_font = "Maple Mono"
 local decorations = "RESIZE"
 if wezterm.target_triple == "x86_64-unknown-linux-gnu" then
-  local desktop = os.getenv("XDG_CURRENT_DESKTOP"):lower()
+  local desktop = os.getenv("XDG_CURRENT_DESKTOP") or ""
   if desktop:lower() == "sway" then
     decorations = "NONE"
   else
