@@ -204,6 +204,8 @@ config.keys = {
   },
   { key = "PageUp", action = wezterm.action.ScrollByPage(-0.33) },
   { key = "PageDown", action = wezterm.action.ScrollByPage(0.33) },
+  -- Send CSI u sequence for Shift+Enter so apps like Claude Code can distinguish it
+  { key = "Enter", mods = "SHIFT", action = wezterm.action({ SendString = "\x1b[13;2u" }) },
 }
 config.hyperlink_rules = hyperlink_rules
 config.initial_cols = 160
