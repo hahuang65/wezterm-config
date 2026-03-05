@@ -2,6 +2,10 @@ local base_url = "https://foobar.com/"
 
 local module = {
   primary_font = "Menlo",
+  -- filepath_patterns = {
+  --   -- Add custom filepath patterns for QuickSelect
+  --   [[\b(custom/path/pattern)\b]],
+  -- },
   hyperlink_rules = {
     {
       regex = "\\b([fF][bB]-\\d+)\\b",

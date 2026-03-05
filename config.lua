@@ -7,6 +7,50 @@ local function starts_with(str, start)
   return str:sub(1, #start) == start
 end
 
+-- Check if a string looks like a URL
+local function is_url(str)
+  return str:match("^%w+://") ~= nil
+end
+
+-- Parse a filepath that may include :line and :line:col suffixes
+local function parse_filepath(raw)
+  local path, line, col = raw:match("^(.+):(%d+):(%d+)$")
+  if path then
+    return path, tonumber(line), tonumber(col)
+  end
+  path, line = raw:match("^(.+):(%d+)$")
+  if path then
+    return path, tonumber(line), nil
+  end
+  return raw, nil, nil
+end
+
+-- Resolve a filepath to an absolute path
+local function resolve_filepath(path, cwd)
+  -- Expand ~ to HOME
+  if path:sub(1, 1) == "~" then
+    local home = os.getenv("HOME") or ""
+    return home .. path:sub(2)
+  end
+  -- Expand $ENV_VAR at the start
+  local env_var = path:match("^%$(%w+)")
+  if env_var then
+    local val = os.getenv(env_var)
+    if val then
+      return val .. path:sub(#env_var + 2) -- +2 for $ and the var name
+    end
+  end
+  -- Already absolute
+  if path:sub(1, 1) == "/" then
+    return path
+  end
+  -- Relative path — prepend CWD
+  if cwd then
+    return cwd .. "/" .. path
+  end
+  return path
+end
+
 -- Default variables (can be overridden by local config)
 local primary_font = "Maple Mono"
 local decorations = "RESIZE"
@@ -81,6 +125,40 @@ if local_config and local_config.hyperlink_rules then
   end
 end
 
+-- Filepath patterns for QuickSelect (combined with hyperlink_regexes in Ctrl-Shift-O)
+-- Note: leading \b doesn't work before non-word chars (/, ~, $, .) so those patterns omit it
+local filepath_patterns = {
+  -- Absolute paths (Unix), optionally with :line or :line:col
+  [[/[\w.\-]+(?:/[\w.\-]+)+(?::\d+)?(?::\d+)?\b]],
+  -- Relative paths starting with ./ or ../
+  [[\.\.?/[\w.\-]+(?:/[\w.\-]+)*(?::\d+)?(?::\d+)?\b]],
+  -- Home-relative paths ~/...
+  [[~/[\w.\-]+(?:/[\w.\-]+)*(?::\d+)?(?::\d+)?\b]],
+  -- Environment variable paths $VAR/...
+  [[\$\w+/[\w.\-]+(?:/[\w.\-]+)*(?::\d+)?(?::\d+)?\b]],
+  -- Bare relative paths with file extension (to avoid matching random words)
+  -- Matches: src/main.rs, lib/foo/bar.lua, config.lua (but not "hello/world")
+  [[\b[\w.\-]+(?:/[\w.\-]+)*\.[\w]+(?::\d+)?(?::\d+)?\b]],
+  -- Single-quoted filenames (e.g. ls output with spaces)
+  [['[^']+\.[\w]+']],
+}
+
+-- Append local filepath patterns if available
+if local_config and local_config.filepath_patterns then
+  for _, pattern in ipairs(local_config.filepath_patterns) do
+    table.insert(filepath_patterns, pattern)
+  end
+end
+
+-- Combine hyperlink regexes and filepath patterns for unified QuickSelect
+local open_patterns = {}
+for _, regex in ipairs(hyperlink_regexes) do
+  table.insert(open_patterns, regex)
+end
+for _, pattern in ipairs(filepath_patterns) do
+  table.insert(open_patterns, pattern)
+end
+
 -- Useful keybinds:
 -- Scrollback: https://wezfurlong.org/wezterm/scrollback.html
 -- Ctrl-Shift-E to open scrollback in nvim
@@ -89,6 +167,7 @@ end
 -- Ctrl-Shift-U to scroll back 1 page (implemented in keybinds)
 -- Ctrl-Shift-D to scroll forward 1 page (implemented in keybinds)
 -- Ctrl-N/Ctrl-P to cycle thru search results
+-- Ctrl-Shift-O to open URLs (browser) or filepaths (prompted command)
 -- Ctrl-Shift-Space to open Quick Select https://wezfurlong.org/wezterm/quickselect.html
 -- Ctrl-Shift-X to open Copy Mode https://wezfurlong.org/wezterm/copymode.html
 
@@ -155,28 +234,104 @@ config.keys = {
   -- Scroll the scrollback
   { key = "D", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = 0.5 }) },
   { key = "U", mods = "SHIFT|CTRL", action = wezterm.action({ ScrollByPage = -0.5 }) },
-  -- Open browser with quickselect https://github.com/wez/wezterm/issues/1362#issuecomment-1000457693
+  -- Open URLs in browser, filepaths with user-specified command
   {
     key = "O",
     mods = "SHIFT|CTRL",
     action = wezterm.action({
       QuickSelectArgs = {
-        patterns = hyperlink_regexes,
+        label = "open",
+        patterns = open_patterns,
         action = wezterm.action_callback(function(window, pane)
-          local url = window:get_selection_text_for_pane(pane)
+          local raw = window:get_selection_text_for_pane(pane)
 
-          -- Apply URL transforms
+          -- 1. Direct URL: open in browser
+          if is_url(raw) then
+            wezterm.log_info("Opening URL: " .. raw)
+            wezterm.open_with(raw)
+            return
+          end
+
+          -- 2. URL transform match: transform and open in browser
           for _, transform in ipairs(url_transforms) do
             for _, prefix in ipairs(transform.prefixes) do
-              if starts_with(url, prefix) then
-                url = transform.format(url)
-                break
+              if starts_with(raw, prefix) then
+                local url = transform.format(raw)
+                wezterm.log_info("Opening URL: " .. url)
+                wezterm.open_with(url)
+                return
               end
             end
           end
 
-          wezterm.log_info("Opening: " .. url)
-          wezterm.open_with(url)
+          -- 3. Filepath: strip quotes, resolve, and prompt for command
+          -- Strip surrounding single quotes (e.g. from ls output)
+          if raw:sub(1, 1) == "'" and raw:sub(-1) == "'" then
+            raw = raw:sub(2, -2)
+          end
+          local path, line, col = parse_filepath(raw)
+
+          local cwd = nil
+          local cwd_url = pane:get_current_working_dir()
+          if cwd_url then
+            cwd = cwd_url.file_path
+          end
+
+          local resolved = resolve_filepath(path, cwd)
+          wezterm.log_info("Selected filepath: " .. resolved
+            .. (line and (":" .. line) or "")
+            .. (col and (":" .. col) or ""))
+
+          -- Prompt user for the command to open the file with
+          window:perform_action(
+            wezterm.action({
+              PromptInputLine = {
+                description = "Open " .. resolved .. " with command (empty for system default):",
+                action = wezterm.action_callback(function(inner_window, inner_pane, cmd)
+                  if cmd == nil then
+                    return -- user cancelled
+                  end
+
+                  if cmd == "" then
+                    wezterm.log_info("Opening with system default: " .. resolved)
+                    wezterm.open_with(resolved)
+                    return
+                  end
+
+                  -- Build args: split cmd on spaces for the command name
+                  local args = {}
+                  for word in cmd:gmatch("%S+") do
+                    table.insert(args, word)
+                  end
+
+                  -- Line number handling per command type:
+                  -- "+line" style: editors that take +N before the filepath
+                  -- ":line" style: test runners that take filepath:N
+                  local line_arg_cmds = { nvim = true, vim = true, vi = true, nano = true, code = true, emacs = true }
+                  local col_cmds = { nvim = true, vim = true, vi = true }
+                  local line_suffix_cmds = { rspec = true, pytest = true }
+                  if line and col and col_cmds[args[1]] then
+                    table.insert(args, "+call cursor(" .. line .. "," .. col .. ")")
+                    table.insert(args, resolved)
+                  elseif line and line_arg_cmds[args[1]] then
+                    table.insert(args, "+" .. line)
+                    table.insert(args, resolved)
+                  elseif line and line_suffix_cmds[args[1]] then
+                    table.insert(args, resolved .. ":" .. line)
+                  else
+                    table.insert(args, resolved)
+                  end
+
+                  wezterm.log_info("Opening: " .. table.concat(args, " "))
+                  inner_window:perform_action(
+                    wezterm.action({ SpawnCommandInNewWindow = { args = args } }),
+                    inner_pane
+                  )
+                end),
+              },
+            }),
+            pane
+          )
         end),
       },
     }),
