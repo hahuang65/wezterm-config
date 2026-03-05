@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Implementation Plan — WezTerm Performance Improvements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    themeVariables: {
+      primaryColor: isDark ? '#2d2317' : '#fef3c7',
+      primaryBorderColor: isDark ? '#d97706' : '#b45309',
+      primaryTextColor: isDark ? '#fef3c7' : '#2d2317',
+      secondaryColor: isDark ? '#1a2e1a' : '#ecfdf5',
+      secondaryBorderColor: isDark ? '#059669' : '#16a34a',
+      secondaryTextColor: isDark ? '#ecfdf5' : '#1a2e1a',
+      tertiaryColor: isDark ? '#2a1a1a' : '#fff1f2',
+      tertiaryBorderColor: isDark ? '#e11d48' : '#f43f5e',
+      tertiaryTextColor: isDark ? '#fff1f2' : '#2a1a1a',
+      lineColor: isDark ? '#64748b' : '#94a3b8',
+      fontSize: '15px',
+      fontFamily: "'Crimson Pro', Georgia, serif",
+      noteBkgColor: isDark ? '#1e293b' : '#fefce8',
+      noteTextColor: isDark ? '#f1f5f9' : '#1e293b',
+      noteBorderColor: isDark ? '#fbbf24' : '#d97706',
+    }
+  });
+</script>
+<style>
+  :root {
+    --font-body: 'Crimson Pro', Georgia, serif;
+    --font-mono: 'Noto Sans Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #faf8f4;
+    --surface: #ffffff;
+    --surface2: #f3f0ea;
+    --surface-elevated: #fffdf8;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-bright: rgba(0, 0, 0, 0.16);
+    --text: #1c1917;
+    --text-dim: #78716c;
+    --accent: #b45309;
+    --accent-dim: rgba(180, 83, 9, 0.08);
+    --gold: #a16207;
+    --gold-dim: rgba(161, 98, 7, 0.08);
+    --sage: #3f6212;
+    --sage-dim: rgba(63, 98, 18, 0.08);
+    --rose: #be123c;
+    --rose-dim: rgba(190, 18, 60, 0.08);
+    --teal: #0f766e;
+    --teal-dim: rgba(15, 118, 110, 0.08);
+    --amber: #92400e;
+    --amber-dim: rgba(146, 64, 14, 0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #18150f;
+      --surface: #211e17;
+      --surface2: #2a261e;
+      --surface-elevated: #302b22;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-bright: rgba(255, 255, 255, 0.13);
+      --text: #e7e0d6;
+      --text-dim: #a39888;
+      --accent: #f59e0b;
+      --accent-dim: rgba(245, 158, 11, 0.1);
+      --gold: #fbbf24;
+      --gold-dim: rgba(251, 191, 36, 0.1);
+      --sage: #a3e635;
+      --sage-dim: rgba(163, 230, 53, 0.1);
+      --rose: #fb7185;
+      --rose-dim: rgba(251, 113, 133, 0.1);
+      --teal: #5eead4;
+      --teal-dim: rgba(94, 234, 212, 0.1);
+      --amber: #fbbf24;
+      --amber-dim: rgba(251, 191, 36, 0.1);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 15% 0%, var(--gold-dim) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 100%, var(--sage-dim) 0%, transparent 35%);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.6;
+    padding: 48px 32px;
+    min-height: 100vh;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim { animation: fadeUp 0.45s ease-out both; animation-delay: calc(var(--i, 0) * 0.06s); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  .page { max-width: 1060px; margin: 0 auto; }
+
+  /* ====== HEADER ====== */
+  .header { margin-bottom: 48px; }
+  .header-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .header h1 {
+    font-size: 42px;
+    font-weight: 700;
+    font-style: italic;
+    letter-spacing: -1px;
+    line-height: 1.15;
+    margin-bottom: 8px;
+    text-wrap: balance;
+  }
+  .header .subtitle {
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .scope-pills {
+    display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
+  }
+  .pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border-bright);
+    background: var(--surface);
+    color: var(--text-dim);
+  }
+  .pill--accent { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .pill--sage { border-color: var(--sage); color: var(--sage); background: var(--sage-dim); }
+  .pill--teal { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+
+  /* ====== SECTION ====== */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+  }
+  .section--hero {
+    background: var(--surface-elevated);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    border-color: color-mix(in srgb, var(--border) 40%, var(--accent) 60%);
+    padding: 28px 32px;
+  }
+  .section--recessed {
+    background: var(--surface2);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* ====== BEFORE / AFTER ====== */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .comparison-panel {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    min-width: 0;
+  }
+  .comparison-panel--before { border-top: 3px solid var(--rose); }
+  .comparison-panel--after { border-top: 3px solid var(--sage); }
+  .comparison-panel h3 {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+  }
+  .comparison-panel--before h3 { color: var(--rose); }
+  .comparison-panel--after h3 { color: var(--sage); }
+  .step-list { list-style: none; font-size: 15px; }
+  .step-list li {
+    padding: 6px 0 6px 24px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: attr(data-n);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    position: absolute;
+    left: 0;
+    top: 8px;
+  }
+  .step-list .highlight {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  /* ====== METRIC CARDS ====== */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-card .value {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.2;
+  }
+  .metric-card .value--rose { color: var(--rose); }
+  .metric-card .value--sage { color: var(--sage); }
+  .metric-card .value--gold { color: var(--gold); }
+  .metric-card .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ====== MERMAID ====== */
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    overflow: auto;
+    margin-bottom: 8px;
+  }
+  .mermaid-wrap .zoom-controls {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 4px;
+    z-index: 2;
+  }
+  .mermaid-wrap .zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-bright);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mermaid-wrap .zoom-controls button:hover { background: var(--surface2); }
+  .mermaid .nodeLabel { color: var(--text) !important; }
+  .mermaid .edgeLabel { color: var(--text-dim) !important; background-color: var(--bg) !important; }
+  .mermaid .edgeLabel rect { fill: var(--bg) !important; }
+  .mermaid .node rect, .mermaid .node circle, .mermaid .node polygon { stroke-width: 1.5px; }
+  .mermaid .edge-pattern-solid { stroke-width: 1.5px; }
+  .mermaid .edgeLabel { font-family: var(--font-mono) !important; font-size: 12px !important; }
+  .mermaid .nodeLabel { font-family: var(--font-body) !important; font-size: 15px !important; }
+  .mermaid-caption {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  /* ====== CODE BLOCKS ====== */
+  .code-block-wrap {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  .code-block-header {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .code-block {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding: 14px 16px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+  }
+  .code-block .kw { color: var(--accent); font-weight: 600; }
+  .code-block .fn { color: var(--teal); }
+  .code-block .str { color: var(--sage); }
+  .code-block .cm { color: var(--text-dim); font-style: italic; }
+  .code-block .num { color: var(--rose); }
+  .code-block .diff-add { background: var(--sage-dim); display: inline; }
+  .code-block .diff-del { background: var(--rose-dim); text-decoration: line-through; opacity: 0.7; }
+
+  /* ====== TABLES ====== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 12px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead { position: sticky; top: 0; z-index: 1; }
+  th {
+    background: var(--surface2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-bright);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    overflow-wrap: break-word;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--surface2); }
+  td code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: 3px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* ====== CALLOUT BOXES ====== */
+  .callout {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 0 10px 10px 0;
+    padding: 16px 20px;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 16px 0;
+  }
+  .callout strong { color: var(--text); font-weight: 700; }
+  .callout code { font-family: var(--font-mono); font-size: 12px; background: var(--accent-dim); color: var(--accent); padding: 1px 5px; border-radius: 3px; }
+  .callout--gold { border-left: 4px solid var(--gold); }
+  .callout--rose { border-left: 4px solid var(--rose); }
+  .callout--amber { border-left: 4px solid var(--amber); }
+
+  /* ====== PHASE BADGE ====== */
+  .phase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+  .phase-badge--1 { background: var(--rose-dim); color: var(--rose); }
+  .phase-badge--2 { background: var(--gold-dim); color: var(--gold); }
+  .phase-badge--3 { background: var(--teal-dim); color: var(--teal); }
+
+  /* ====== RESPONSIVE ====== */
+  @media (max-width: 768px) {
+    body { padding: 20px 16px; }
+    .comparison { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: 1fr; }
+    .header h1 { font-size: 30px; }
+  }
+
+  h2 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  h2 + p { color: var(--text-dim); font-size: 15px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ========== 1. HEADER ========== -->
+  <div class="header anim" style="--i:0">
+    <div class="header-label">Implementation Plan</div>
+    <h1>WezTerm Configuration Performance Improvements</h1>
+    <p class="subtitle">Eliminate the 2-second UI freeze when opening scrollback in nvim, optimize hyperlink array construction, and audit font fallbacks &mdash; all within <code style="font-family:var(--font-mono);font-size:14px;background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:3px">config.lua</code></p>
+    <div class="scope-pills">
+      <span class="pill pill--accent">Phase 1: Scrollback Handler (Critical)</span>
+      <span class="pill pill--sage">Phase 2: Hyperlink Array (Code Quality)</span>
+      <span class="pill pill--teal">Phase 3: Font Audit (Exploratory)</span>
+    </div>
+  </div>
+
+  <!-- ========== 2. THE PROBLEM ========== -->
+  <div class="section section--hero anim" style="--i:1">
+    <h2>The Problem</h2>
+    <p>Side-by-side: current behavior vs. desired behavior</p>
+
+    <div class="comparison">
+      <div class="comparison-panel comparison-panel--before">
+        <h3>Before</h3>
+        <ol class="step-list">
+          <li data-n="1.">User presses <strong>Ctrl+Shift+E</strong></li>
+          <li data-n="2.">Handler calls <code>get_lines_as_text(2000)</code> &mdash; physical lines, capped at 2000</li>
+          <li data-n="3.">Writes temp file, spawns nvim in new window</li>
+          <li data-n="4."><span class="highlight">UI freezes for 2000ms</span> while <code>sleep_ms(2000)</code> blocks</li>
+          <li data-n="5.">Temp file deleted, UI unfreezes</li>
+          <li data-n="6.">Hyperlink arrays built with <em>double iteration</em></li>
+          <li data-n="7.">8 font fallbacks, some potentially redundant</li>
+        </ol>
+      </div>
+      <div class="comparison-panel comparison-panel--after">
+        <h3>After</h3>
+        <ol class="step-list">
+          <li data-n="1.">User presses <strong>Ctrl+Shift+E</strong></li>
+          <li data-n="2.">Handler calls <code>get_logical_lines_as_text(scrollback_rows)</code> &mdash; full scrollback, logical lines</li>
+          <li data-n="3.">Writes temp file, spawns nvim in new window (no sleep)</li>
+          <li data-n="4."><span class="highlight" style="color:var(--sage)">Zero UI freeze</span> &mdash; no <code>sleep_ms</code>, temp file left for OS cleanup</li>
+          <li data-n="5.">Cursor at bottom via <code>+normal G</code></li>
+          <li data-n="6.">Hyperlink arrays built in <em>single pass</em></li>
+          <li data-n="7.">Font fallbacks trimmed to only needed fonts</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric-card">
+        <div class="value value--sage">100%</div>
+        <div class="label">UI freeze eliminated</div>
+      </div>
+      <div class="metric-card">
+        <div class="value value--gold">2000ms</div>
+        <div class="label">Time saved per invocation</div>
+      </div>
+      <div class="metric-card">
+        <div class="value value--rose">0</div>
+        <div class="label">Breaking changes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 3. STATE MACHINE ========== -->
+  <div class="section anim" style="--i:3">
+    <h2>Scrollback Flow: Before vs. After</h2>
+    <p>The handler is streamlined: no sleep, full scrollback via logical lines, cursor at bottom</p>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="this.closest('.mermaid-wrap').style.zoom=(parseFloat(this.closest('.mermaid-wrap').style.zoom||1)-0.1)" title="Zoom out">&minus;</button>
+        <button onclick="this.closest('.mermaid-wrap').style.zoom=1" title="Reset">1:1</button>
+        <button onclick="this.closest('.mermaid-wrap').style.zoom=(parseFloat(this.closest('.mermaid-wrap').style.zoom||1)+0.1)" title="Zoom in">+</button>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+    subgraph before["Before: Custom Handler"]
+      A1["Ctrl+Shift+E"] --> A2["get_lines_as_text 2000"]
+      A2 --> A3["Write temp file"]
+      A3 --> A4["SpawnCommandInNewWindow"]
+      A4 --> A5["sleep_ms 2000"]
+      A5 --> A6["os.remove temp file"]
+    end
+
+    subgraph after["After: Improved Handler"]
+      B1["Ctrl+Shift+E"] --> B2["get_logical_lines_as_text\nfull scrollback"]
+      B2 --> B3["Write temp file"]
+      B3 --> B4["SpawnCommandInNewWindow\nnvim +normal G"]
+    end
+
+    classDef old fill:#be123c11,stroke:#be123c44,stroke-width:1px
+    classDef new fill:#3f621222,stroke:#3f6212,stroke-width:2px
+    class A1,A2,A3,A4,A5,A6 old
+    class B1,B2,B3,B4 new
+      </pre>
+    </div>
+    <p class="mermaid-caption">Rose: old code path (sleep + cleanup). Green: improved handler (logical lines, no sleep, no cleanup).</p>
+  </div>
+
+  <!-- ========== 4. STATE VARIABLES ========== -->
+  <div class="section anim" style="--i:4">
+    <h2>Config Changes</h2>
+    <p>What gets removed and what changes in the handler</p>
+
+    <div class="comparison">
+      <div class="comparison-panel comparison-panel--before">
+        <h3>Before (handler internals)</h3>
+        <div class="code-block-wrap">
+          <div class="code-block"><span class="diff-del"><span class="kw">local</span> scrollback = pane:<span class="fn">get_lines_as_text</span>(<span class="num">2000</span>)</span>
+<span class="cm">  -- physical lines, capped at 2000</span>
+
+<span class="cm">  -- ... write temp file, spawn nvim ...</span>
+
+<span class="diff-del"><span class="kw">wezterm</span>.<span class="fn">sleep_ms</span>(<span class="num">2000</span>)</span>  <span class="cm">-- blocks UI!</span>
+<span class="diff-del"><span class="fn">os.remove</span>(name)</span></div>
+        </div>
+      </div>
+      <div class="comparison-panel comparison-panel--after">
+        <h3>After (improved handler)</h3>
+        <div class="code-block-wrap">
+          <div class="code-block"><span class="diff-add"><span class="kw">local</span> scrollback = pane:<span class="fn">get_logical_lines_as_text</span>(</span>
+<span class="diff-add">  pane:<span class="fn">get_dimensions</span>().scrollback_rows)</span>
+<span class="cm">  -- logical lines, full scrollback</span>
+
+<span class="cm">  -- ... write temp file ...</span>
+
+<span class="diff-add">args = { <span class="str">"nvim"</span>, <span class="str">"+normal G"</span>, name }</span>
+<span class="cm">  -- no sleep, no cleanup &mdash; OS cleans /tmp</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 5. MODIFIED FUNCTIONS ========== -->
+  <div class="section anim" style="--i:5">
+    <h2>Modified Functions</h2>
+    <p>Three changes, all within <code>config.lua</code></p>
+
+    <!-- Change 1 -->
+    <div class="phase-badge phase-badge--1">Phase 1 &mdash; Improve Scrollback Handler</div>
+
+    <div class="code-block-wrap">
+      <div class="code-block-header">config.lua &bull; Improve event handler (lines 95&ndash;114)</div>
+      <div class="code-block"><span class="kw">wezterm</span>.<span class="fn">on</span>(<span class="str">"trigger-nvim-with-scrollback"</span>, <span class="kw">function</span>(window, pane)
+<span class="diff-add">  <span class="kw">local</span> scrollback = pane:<span class="fn">get_logical_lines_as_text</span>(</span>
+<span class="diff-add">    pane:<span class="fn">get_dimensions</span>().scrollback_rows)</span>
+
+  <span class="kw">local</span> name = <span class="fn">os.tmpname</span>()
+  <span class="kw">local</span> f = <span class="fn">io.open</span>(name, <span class="str">"w+"</span>)
+  <span class="kw">if</span> f ~= <span class="kw">nil</span> <span class="kw">then</span>
+    f:<span class="fn">write</span>(scrollback)
+    f:<span class="fn">flush</span>()
+    f:<span class="fn">close</span>()
+  <span class="kw">end</span>
+
+  window:<span class="fn">perform_action</span>(
+    <span class="kw">wezterm</span>.<span class="fn">action</span>({
+      SpawnCommandInNewWindow = {
+<span class="diff-add">        args = { <span class="str">"nvim"</span>, <span class="str">"+normal G"</span>, name },</span>
+      },
+    }), pane)
+<span class="cm">  -- no sleep, no os.remove &mdash; OS cleans /tmp</span>
+<span class="kw">end</span>)</div>
+    </div>
+
+    <!-- Change 2 -->
+    <div class="phase-badge phase-badge--2" style="margin-top:24px">Phase 2 &mdash; Code Quality</div>
+
+    <div class="code-block-wrap">
+      <div class="code-block-header">config.lua &mdash; lines 48&ndash;78 &bull; Hyperlink array construction</div>
+      <div class="code-block"><span class="kw">local</span> hyperlink_rules = <span class="kw">wezterm</span>.<span class="fn">default_hyperlink_rules</span>()
+<span class="kw">local</span> hyperlink_regexes = {}
+
+<span class="diff-add"><span class="cm">-- Extract regexes from default rules first</span></span>
+<span class="diff-add"><span class="kw">for</span> _, rule <span class="kw">in</span> <span class="fn">ipairs</span>(hyperlink_rules) <span class="kw">do</span></span>
+<span class="diff-add">  <span class="fn">table.insert</span>(hyperlink_regexes, rule.regex)</span>
+<span class="diff-add"><span class="kw">end</span></span>
+
+<span class="cm">-- Add custom rules (build both arrays together)</span>
+<span class="kw">for</span> _, rule <span class="kw">in</span> <span class="fn">ipairs</span>({
+  { regex = <span class="str">[[...IP pattern...]]</span>, format = <span class="str">"$0"</span> },
+  { regex = <span class="str">"...localhost pattern..."</span>, format = <span class="str">"$0"</span> },
+}) <span class="kw">do</span>
+  <span class="fn">table.insert</span>(hyperlink_rules, rule)
+  <span class="diff-add"><span class="fn">table.insert</span>(hyperlink_regexes, rule.regex)</span>  <span class="cm">-- now built together</span>
+<span class="kw">end</span></div>
+    </div>
+
+    <!-- Change 3 -->
+    <div class="phase-badge phase-badge--3" style="margin-top:24px">Phase 3 &mdash; Exploratory</div>
+
+    <div class="code-block-wrap">
+      <div class="code-block-header">config.lua &mdash; lines 136&ndash;145 &bull; Font fallback (audit-dependent)</div>
+      <div class="code-block"><span class="cm">-- Current: 8 fallback fonts (1 primary + 7 fallbacks)</span>
+config.font = <span class="kw">wezterm</span>.<span class="fn">font_with_fallback</span>({
+  primary_font,
+  { family = <span class="str">"Noto Color Emoji"</span>, scale = <span class="num">0.75</span> },
+  { family = <span class="str">"Symbols Nerd Font Mono"</span>, scale = <span class="num">0.75</span> },
+  <span class="diff-del">{ family = <span class="str">"Powerline Extra Symbols"</span>, scale = <span class="num">0.75</span> },</span>  <span class="cm">-- likely covered by Nerd Font</span>
+  <span class="diff-del">{ family = <span class="str">"codicon"</span>, scale = <span class="num">0.75</span> },</span>                 <span class="cm">-- audit needed</span>
+  { family = <span class="str">"Noto Sans Symbols"</span>, scale = <span class="num">0.75</span> },
+  <span class="diff-del">{ family = <span class="str">"Noto Sans Symbols2"</span>, scale = <span class="num">0.75</span> },</span>      <span class="cm">-- overlap?</span>
+  <span class="diff-del">{ family = <span class="str">"Font Awesome 6 Free"</span>, scale = <span class="num">0.75</span> },</span>     <span class="cm">-- overlap with Nerd Font?</span>
+})</div>
+    </div>
+    <p style="font-size:14px;color:var(--text-dim);margin-top:8px;font-style:italic">Phase 3 removals depend on <code>wezterm ls-fonts --text</code> audit results. Strikethrough lines are candidates, not guaranteed removals.</p>
+  </div>
+
+  <!-- ========== 6. COMMANDS / API ========== -->
+  <div class="section anim" style="--i:6">
+    <h2>WezTerm APIs Used</h2>
+    <p>Existing APIs referenced in this plan</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>API Call</th>
+            <th>Parameters</th>
+            <th>Behavior</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>pane:get_logical_lines_as_text(nlines)</code></td>
+            <td><code>nlines</code> &mdash; number of logical lines</td>
+            <td>Returns scrollback text respecting soft wraps. Logical lines = actual lines as displayed, not physical line breaks.</td>
+          </tr>
+          <tr>
+            <td><code>pane:get_dimensions()</code></td>
+            <td>none</td>
+            <td>Returns a table with terminal dimensions including <code>.scrollback_rows</code> for total scrollback size.</td>
+          </tr>
+          <tr>
+            <td><code>wezterm.default_hyperlink_rules()</code></td>
+            <td>none</td>
+            <td>Returns the built-in set of hyperlink detection rules (URLs, file paths, etc.)</td>
+          </tr>
+          <tr>
+            <td><code>wezterm.font_with_fallback(fonts)</code></td>
+            <td><code>fonts</code> &mdash; table of font specs</td>
+            <td>Returns a font config that tries each font in order for glyph resolution.</td>
+          </tr>
+          <tr>
+            <td><code>wezterm ls-fonts --text "glyph"</code></td>
+            <td>glyph string</td>
+            <td>CLI tool: shows which fallback font provides the given glyph. Used for Phase 3 audit.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========== 7. EDGE CASES ========== -->
+  <div class="section anim" style="--i:7">
+    <h2>Edge Cases</h2>
+    <p>Scenarios requiring careful consideration</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Scenario</th>
+            <th>Expected Behavior</th>
+            <th>Risk</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Large scrollback (10,000+ lines)</td>
+            <td><code>get_logical_lines_as_text(scrollback_rows)</code> captures full buffer. Temp file write is fast for typical sizes.</td>
+            <td>Low</td>
+          </tr>
+          <tr>
+            <td>System under heavy CPU load</td>
+            <td>No sleep or timing dependency. Handler writes file and spawns nvim immediately.</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td>Empty scrollback (no output)</td>
+            <td>Nvim opens with empty file. Same user experience.</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td>Missing <code>local.lua</code></td>
+            <td><code>pcall</code> catches error, defaults used. No hyperlink rules from local config.</td>
+            <td>None &mdash; existing defensive pattern</td>
+          </tr>
+          <tr>
+            <td>Font removed in Phase 3 but glyph needed</td>
+            <td>Glyph renders as placeholder box. Visible regression.</td>
+            <td>Medium &mdash; mitigated by thorough audit before removal</td>
+          </tr>
+          <tr>
+            <td>Custom hyperlink rules from <code>local.lua</code></td>
+            <td>Still appended to both arrays after refactoring. Behavior unchanged.</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td>Concurrent Ctrl+Shift+E invocations</td>
+            <td>Each call gets a unique <code>os.tmpname()</code>. No file conflicts.</td>
+            <td>None</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========== 8. TEST REQUIREMENTS ========== -->
+  <div class="section anim" style="--i:8">
+    <h2>Test Requirements</h2>
+    <p>All test cases from the plan &mdash; manual verification (terminal emulator config, no automated tests)</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:80px">Test Case</th>
+            <th>Scenario</th>
+            <th>Steps</th>
+            <th>Expected Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>TC-1</strong><br><span style="font-size:11px;color:var(--rose)">Phase 1</span></td>
+            <td>Nvim scrollback handler performance</td>
+            <td>Populate scrollback, press Ctrl+Shift+E, observe responsiveness</td>
+            <td>Zero UI freeze, nvim opens in new window with full scrollback, cursor at bottom</td>
+          </tr>
+          <tr>
+            <td><strong>TC-2</strong><br><span style="font-size:11px;color:var(--rose)">Phase 1</span></td>
+            <td>Scrollback handler under stress (10K lines + CPU load)</td>
+            <td>Generate 10K lines, run <code>yes &gt; /dev/null &amp;</code>, trigger handler</td>
+            <td>No data corruption, content intact, temp file in /tmp (OS-managed)</td>
+          </tr>
+          <tr>
+            <td><strong>TC-3</strong><br><span style="font-size:11px;color:var(--gold)">Phase 2</span></td>
+            <td>Hyperlink detection &mdash; IP addresses and localhost</td>
+            <td>Echo <code>http://127.0.0.1:8000</code> and <code>http://localhost:3000</code>, use QuickSelect</td>
+            <td>Both URLs highlighted and openable in browser</td>
+          </tr>
+          <tr>
+            <td><strong>TC-4</strong><br><span style="font-size:11px;color:var(--gold)">Phase 2</span></td>
+            <td>Local config hyperlink rules (Jira tickets)</td>
+            <td>Echo <code>A5-1234</code>, use QuickSelect</td>
+            <td>Jira ticket detected, opens correct Atlassian URL</td>
+          </tr>
+          <tr>
+            <td><strong>TC-5</strong><br><span style="font-size:11px;color:var(--teal)">Phase 3</span></td>
+            <td>Font fallback verification (post-audit)</td>
+            <td>Open nvim, tmux, shell prompt; echo test glyphs</td>
+            <td>All icons render correctly, no placeholder boxes</td>
+          </tr>
+          <tr>
+            <td><strong>TC-6</strong><br><span style="font-size:11px;color:var(--text-dim)">Final</span></td>
+            <td>Configuration load performance</td>
+            <td><code>time wezterm start</code></td>
+            <td>Startup &lt;50ms, no error messages, all settings applied</td>
+          </tr>
+          <tr>
+            <td><strong>TC-7</strong><br><span style="font-size:11px;color:var(--text-dim)">Final</span></td>
+            <td>Missing <code>local.lua</code> graceful degradation</td>
+            <td>Rename local.lua, reload config, verify defaults, restore</td>
+            <td>No errors, defaults used, graceful fallback</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========== 9. FILE REFERENCES ========== -->
+  <div class="section section--recessed anim" style="--i:9">
+    <h2>File References</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Lines</th>
+            <th>Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>config.lua</code></td>
+            <td>95&ndash;114</td>
+            <td>Improve event handler: use <code>get_logical_lines_as_text</code> with full scrollback, remove <code>sleep_ms</code> and <code>os.remove</code>, add <code>+normal G</code> cursor positioning</td>
+          </tr>
+          <tr>
+            <td><code>config.lua</code></td>
+            <td>48&ndash;78</td>
+            <td>Refactor hyperlink array construction to single-pass; extract default regexes before adding custom rules</td>
+          </tr>
+          <tr>
+            <td><code>config.lua</code></td>
+            <td>136&ndash;145</td>
+            <td>Remove unused font fallbacks (pending audit results from Phase 3)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========== 10. IMPLEMENTATION NOTES ========== -->
+  <div class="anim" style="--i:10">
+    <h2 style="margin-bottom:16px">Implementation Notes</h2>
+
+    <div class="callout callout--gold">
+      <strong>Backward Compatibility:</strong> All changes are internal optimizations. User-facing behavior (keybindings, hyperlink detection, font rendering) remains identical. No configuration format changes. The <code>pcall</code> pattern for <code>local.lua</code> is preserved.
+    </div>
+
+    <div class="callout callout--rose">
+      <strong>Critical &mdash; Handler Changes:</strong> The event handler is streamlined: <code>sleep_ms(2000)</code> and <code>os.remove()</code> are removed, <code>get_lines_as_text(2000)</code> is replaced with <code>get_logical_lines_as_text(scrollback_rows)</code>, and nvim gets <code>+normal G</code> for cursor-at-bottom. The <code>io</code> and <code>os</code> imports are retained (still needed).
+    </div>
+
+    <div class="callout callout--amber">
+      <strong>Performance Targets:</strong> Scrollback handler: zero UI freeze (down from 2000ms). Startup time &lt;50ms (no regression). Font rendering: no noticeable delay. Hyperlink construction: ~1-2ms improvement (negligible but cleaner code).
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WezTerm → Ghostty Migration Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Fragment+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Bricolage Grotesque', system-ui, sans-serif;
+    --font-mono: 'Fragment Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface2: #eef0f4;
+    --surface-elevated: #ffffff;
+    --border: rgba(0, 0, 0, 0.07);
+    --border-bright: rgba(0, 0, 0, 0.14);
+    --text: #1a1d26;
+    --text-dim: #6b7085;
+    --accent: #3b5998;
+    --accent-dim: rgba(59, 89, 152, 0.08);
+
+    --full: #16a34a;
+    --full-dim: rgba(22, 163, 74, 0.08);
+    --full-border: rgba(22, 163, 74, 0.25);
+    --partial: #ca8a04;
+    --partial-dim: rgba(202, 138, 4, 0.08);
+    --partial-border: rgba(202, 138, 4, 0.25);
+    --none: #dc2626;
+    --none-dim: rgba(220, 38, 38, 0.08);
+    --none-border: rgba(220, 38, 38, 0.25);
+    --diff: #7c3aed;
+    --diff-dim: rgba(124, 58, 237, 0.08);
+    --diff-border: rgba(124, 58, 237, 0.25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1117;
+      --surface: #181b24;
+      --surface2: #1f2330;
+      --surface-elevated: #232838;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-bright: rgba(255, 255, 255, 0.12);
+      --text: #e2e5ef;
+      --text-dim: #8890a8;
+      --accent: #7da2e8;
+      --accent-dim: rgba(125, 162, 232, 0.1);
+
+      --full: #4ade80;
+      --full-dim: rgba(74, 222, 128, 0.1);
+      --full-border: rgba(74, 222, 128, 0.2);
+      --partial: #facc15;
+      --partial-dim: rgba(250, 204, 21, 0.1);
+      --partial-border: rgba(250, 204, 21, 0.2);
+      --none: #f87171;
+      --none-dim: rgba(248, 113, 113, 0.1);
+      --none-border: rgba(248, 113, 113, 0.2);
+      --diff: #a78bfa;
+      --diff-dim: rgba(167, 139, 250, 0.1);
+      --diff-border: rgba(167, 139, 250, 0.2);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 15% 0%, var(--accent-dim) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 100%, var(--full-dim) 0%, transparent 35%);
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 40px;
+    min-height: 100vh;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .anim { animation: fadeUp 0.4s ease-out both; animation-delay: calc(var(--i, 0) * 0.06s); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+    }
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  h1 { font-size: 42px; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 4px; }
+  .subtitle { color: var(--text-dim); font-size: 13px; font-family: var(--font-mono); margin-bottom: 32px; }
+
+  .legend {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin-bottom: 28px; padding: 14px 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; font-family: var(--font-mono); color: var(--text-dim); }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 4px; }
+
+  /* Source architecture */
+  .source-arch {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-bright);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+  .source-arch h2 {
+    font-size: 16px; font-weight: 700; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .source-arch h2 span { font-size: 12px; font-family: var(--font-mono); color: var(--text-dim); font-weight: 400; }
+  .file-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .file-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .file-card .fname { font-family: var(--font-mono); font-size: 12px; font-weight: 500; margin-bottom: 4px; color: var(--accent); }
+  .file-card .fdesc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  .arrow-down {
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    color: var(--text-dim); font-family: var(--font-mono); font-size: 11px; padding: 6px 0;
+  }
+  .arrow-down svg { width: 18px; height: 18px; fill: none; stroke: var(--border-bright); stroke-width: 2; stroke-linecap: round; }
+
+  /* Feature mapping table */
+  .map-section { margin-bottom: 20px; }
+  .map-section h2 {
+    font-size: 16px; font-weight: 700; margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--border);
+  }
+
+  .feature-row {
+    display: grid;
+    grid-template-columns: 200px 1fr 28px 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin-bottom: 8px;
+  }
+
+  .feature-label {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    padding: 10px 14px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px 0 0 8px;
+    display: flex; align-items: center;
+  }
+
+  .wez-val, .ghost-val {
+    font-family: var(--font-mono); font-size: 11px;
+    padding: 10px 14px; line-height: 1.6;
+    border: 1px solid var(--border); border-left: none;
+    background: var(--surface);
+  }
+  .wez-val { background: var(--surface2); }
+  .ghost-val { border-radius: 0 8px 8px 0; }
+
+  .arrow-col {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--text-dim);
+    background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+
+  /* Parity badges */
+  .badge {
+    display: inline-block; font-family: var(--font-mono); font-size: 9px;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
+    padding: 2px 7px; border-radius: 4px; margin-left: 8px; vertical-align: middle;
+  }
+  .badge--full { background: var(--full-dim); color: var(--full); border: 1px solid var(--full-border); }
+  .badge--partial { background: var(--partial-dim); color: var(--partial); border: 1px solid var(--partial-border); }
+  .badge--none { background: var(--none-dim); color: var(--none); border: 1px solid var(--none-border); }
+  .badge--diff { background: var(--diff-dim); color: var(--diff); border: 1px solid var(--diff-border); }
+
+  .ghost-val.parity-full { border-left: 3px solid var(--full); }
+  .ghost-val.parity-partial { border-left: 3px solid var(--partial); }
+  .ghost-val.parity-none { border-left: 3px solid var(--none); }
+  .ghost-val.parity-diff { border-left: 3px solid var(--diff); }
+
+  code {
+    font-family: var(--font-mono); font-size: 11px;
+    background: var(--accent-dim); color: var(--accent);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  .gap-note {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-left: 3px solid var(--none);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px; margin-bottom: 20px;
+    font-size: 12px; line-height: 1.6; color: var(--text-dim);
+  }
+  .gap-note strong { color: var(--text); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 28px; }
+  .summary-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 20px; text-align: center;
+  }
+  .summary-card .num { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+  .summary-card .label { font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); margin-top: 4px; }
+
+  @media (max-width: 768px) {
+    body { padding: 16px; }
+    .file-grid { grid-template-columns: 1fr 1fr; }
+    .feature-row { grid-template-columns: 1fr; }
+    .wez-val, .ghost-val, .feature-label { border-radius: 0; border-left: 1px solid var(--border); }
+    .feature-label { border-radius: 8px 8px 0 0; }
+    .ghost-val { border-radius: 0 0 8px 8px; }
+    .arrow-col { display: none; }
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1 class="anim" style="--i:0">WezTerm → Ghostty</h1>
+<p class="subtitle anim" style="--i:1">feature parity migration map &mdash; march 2026</p>
+
+<div class="legend anim" style="--i:2">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--full-dim);border:1px solid var(--full)"></div> Full parity</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--partial-dim);border:1px solid var(--partial)"></div> Partial parity</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--none-dim);border:1px solid var(--none)"></div> No equivalent</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--diff-dim);border:1px solid var(--diff)"></div> Different approach</div>
+</div>
+
+<!-- Source Architecture -->
+<div class="source-arch anim" style="--i:3">
+  <h2>WezTerm Config Architecture <span>~/.dotfiles/wezterm/</span></h2>
+  <div class="file-grid">
+    <div class="file-card">
+      <div class="fname">config.lua</div>
+      <div class="fdesc">Main config: fonts, colors, keybinds, hyperlinks, scrollback handler. 219 lines of Lua.</div>
+    </div>
+    <div class="file-card">
+      <div class="fname">local.lua</div>
+      <div class="fdesc">Optional machine-local overrides: font, decorations, URL transforms, hyperlink rules, apply_to_config().</div>
+    </div>
+    <div class="file-card">
+      <div class="fname">colors/*.toml</div>
+      <div class="fdesc">Custom color schemes. Ships Tokyo Night Storm (unused &mdash; Catppuccin Mocha is active).</div>
+    </div>
+    <div class="file-card">
+      <div class="fname">install.sh</div>
+      <div class="fdesc">Symlinks config.lua &rarr; ~/.config/wezterm/wezterm.lua and color files.</div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow-down anim" style="--i:4">
+  <svg viewBox="0 0 20 20"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+  maps to ghostty key-value config
+</div>
+
+<!-- Appearance -->
+<div class="map-section anim" style="--i:5">
+  <h2>Appearance</h2>
+
+  <div class="feature-row">
+    <div class="feature-label">Font + fallbacks <span class="badge badge--partial">partial</span></div>
+    <div class="wez-val">font_with_fallback({<br>"Maple Mono",<br>{family="Noto Color Emoji", scale=0.75},<br>{family="Symbols Nerd Font Mono", scale=0.75},<br>... 5 more})</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-partial">font-family = "Maple Mono"<br>font-family = "Noto Color Emoji"<br>font-family = "Symbols Nerd Font Mono"<br><em style="color:var(--partial)">No per-font scale. Nerd Fonts auto-scaled.</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Font size <span class="badge badge--full">full</span></div>
+    <div class="wez-val">font_size = 14</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">font-size = 14</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Cursor <span class="badge badge--full">full</span></div>
+    <div class="wez-val">default_cursor_style = "BlinkingBlock"<br>hide_mouse_cursor_when_typing = false</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">cursor-style = block<br>cursor-style-blink = true<br>mouse-hide-while-typing = false</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Color scheme <span class="badge badge--full">full</span></div>
+    <div class="wez-val">color_scheme = "Catppuccin Mocha"</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">theme = "catppuccin-mocha"<br><em style="color:var(--text-dim)">Built-in. Verify: ghostty +list-themes</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Padding <span class="badge badge--full">full</span></div>
+    <div class="wez-val">window_padding = {<br>&nbsp; left="4px", right="4px",<br>&nbsp; top="2px", bottom="2px" }</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">window-padding-x = 4<br>window-padding-y = 2</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Decorations <span class="badge badge--partial">partial</span></div>
+    <div class="wez-val">macOS: "RESIZE"<br>Linux/Sway: "NONE"<br>Linux/other: "TITLE | RESIZE"</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-partial">macOS: macos-titlebar-style = hidden<br>Linux: window-decoration = none/auto<br><em style="color:var(--partial)">Separate options per platform</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Tab bar <span class="badge badge--partial">partial</span></div>
+    <div class="wez-val">enable_tab_bar = true<br>hide_tab_bar_if_only_one_tab = true</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-partial">Linux: window-show-tab-bar = auto<br><em style="color:var(--partial)">macOS: tied to titlebar style</em></div>
+  </div>
+</div>
+
+<!-- Behavior -->
+<div class="map-section anim" style="--i:6">
+  <h2>Behavior</h2>
+
+  <div class="feature-row">
+    <div class="feature-label">Scrollback <span class="badge badge--full">full</span></div>
+    <div class="wez-val">scrollback_lines = 10000</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">scrollback-limit = 10000000<br><em style="color:var(--text-dim)">Bytes not lines. 10MB default suffices.</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Close confirm <span class="badge badge--full">full</span></div>
+    <div class="wez-val">window_close_confirmation = "NeverPrompt"</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">confirm-close-surface = false</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Window size <span class="badge badge--full">full</span></div>
+    <div class="wez-val">initial_cols = 160<br>initial_rows = 48</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">window-width = 160<br>window-height = 48</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Wayland / GPU <span class="badge badge--full">full</span></div>
+    <div class="wez-val">enable_wayland = true<br>front_end = "OpenGL"</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full"><em style="color:var(--text-dim)">Automatic. Native Wayland + GPU renderer.</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Local overrides <span class="badge badge--diff">different</span></div>
+    <div class="wez-val">require("local")<br>local_config.apply_to_config(config)</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-diff">config-file = local.conf<br><em style="color:var(--diff)">Include directive. File must exist (even empty).</em></div>
+  </div>
+</div>
+
+<!-- Keybindings -->
+<div class="map-section anim" style="--i:7">
+  <h2>Keybindings</h2>
+
+  <div class="feature-row">
+    <div class="feature-label">Scroll half-page <span class="badge badge--full">full</span></div>
+    <div class="wez-val">Ctrl+Shift+D → ScrollByPage(0.5)<br>Ctrl+Shift+U → ScrollByPage(-0.5)</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">ctrl+shift+d=scroll_page_fractional:0.5<br>ctrl+shift+u=scroll_page_fractional:-0.5</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">PageUp / PageDown <span class="badge badge--full">full</span></div>
+    <div class="wez-val">PageUp → ScrollByPage(-0.33)<br>PageDown → ScrollByPage(0.33)</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">page_up=scroll_page_fractional:-0.33<br>page_down=scroll_page_fractional:0.33</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Shift+Enter CSI <span class="badge badge--full">full</span></div>
+    <div class="wez-val">Enter + SHIFT → SendString "\x1b[13;2u"</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">shift+enter=csi:13;2u<br><em style="color:var(--text-dim)">May work OOTB via kitty protocol</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Unbind keys <span class="badge badge--full">full</span></div>
+    <div class="wez-val">Ctrl+Shift+N → DisableDefaultAssignment<br>Ctrl+Shift+P → DisableDefaultAssignment</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-full">ctrl+shift+n=unbind<br>ctrl+shift+p=unbind</div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Search git hashes <span class="badge badge--none">none</span></div>
+    <div class="wez-val">Ctrl+Shift+H → Search{Regex="[a-f0-9]{6,}"}</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-none"><em style="color:var(--none)">No parameterized search action in Ghostty</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">Scrollback in nvim <span class="badge badge--none">none</span></div>
+    <div class="wez-val">Ctrl+Shift+E → event handler:<br>dump 2000 lines → tmpfile → nvim</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-none"><em style="color:var(--none)">No scripting / event system. Needs external tool.</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">QuickSelect URLs <span class="badge badge--none">none</span></div>
+    <div class="wez-val">Ctrl+Shift+O → QuickSelectArgs{<br>patterns, url_transforms, open_with}</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-none"><em style="color:var(--none)">Cmd/Ctrl+click opens URLs.<br>No keyboard-driven quick-select.</em></div>
+  </div>
+</div>
+
+<!-- Hyperlinks -->
+<div class="map-section anim" style="--i:8">
+  <h2>Hyperlinks &amp; URLs</h2>
+
+  <div class="feature-row">
+    <div class="feature-label">URL detection <span class="badge badge--partial">partial</span></div>
+    <div class="wez-val">Custom regex rules for:<br>- numeric IPs (127.0.0.1:8000)<br>- localhost URLs<br>- local.lua custom patterns</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-partial">link-url = true (default)<br><em style="color:var(--partial)">Built-in detection only. No custom regex.</em></div>
+  </div>
+
+  <div class="feature-row">
+    <div class="feature-label">URL transforms <span class="badge badge--none">none</span></div>
+    <div class="wez-val">url_transforms: rewrite URLs<br>before opening (prefix matching)</div>
+    <div class="arrow-col">→</div>
+    <div class="ghost-val parity-none"><em style="color:var(--none)">Not supported. No URL rewriting.</em></div>
+  </div>
+</div>
+
+<!-- Gap callout -->
+<div class="gap-note anim" style="--i:9">
+  <strong>Features requiring external tooling:</strong> The scrollback-in-nvim handler, regex search with pre-filled pattern, QuickSelect with URL transforms, and custom hyperlink rules all rely on WezTerm's Lua scripting. Ghostty is intentionally configuration-only (no scripting). These features would need shell scripts, tmux integration, or other external tools to replicate.
+</div>
+
+<!-- Summary -->
+<div class="summary-grid anim" style="--i:10">
+  <div class="summary-card">
+    <div class="num" style="color:var(--full)">12</div>
+    <div class="label">Full parity</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:var(--partial)">4</div>
+    <div class="label">Partial parity</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:var(--none)">4</div>
+    <div class="label">No equivalent</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:var(--diff)">1</div>
+    <div class="label">Different approach</div>
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>

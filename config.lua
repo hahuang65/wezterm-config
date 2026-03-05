@@ -47,6 +47,13 @@ end
 
 local hyperlink_rules = wezterm.default_hyperlink_rules()
 local hyperlink_regexes = {}
+
+-- Extract regexes from default rules first
+for _, rule in ipairs(hyperlink_rules) do
+  table.insert(hyperlink_regexes, rule.regex)
+end
+
+-- Add custom rules (build both arrays together)
 for _, rule in ipairs({
   -- Things that look like URLs with numeric addresses as hosts.
   -- E.g. http://127.0.0.1:8000 for a local development server,
@@ -63,10 +70,7 @@ for _, rule in ipairs({
   },
 }) do
   table.insert(hyperlink_rules, rule)
-end
-
-for _, v in ipairs(hyperlink_rules) do
-  table.insert(hyperlink_regexes, v["regex"])
+  table.insert(hyperlink_regexes, rule.regex)
 end
 
 -- Append local hyperlink rules if available
@@ -88,14 +92,9 @@ end
 -- Ctrl-Shift-Space to open Quick Select https://wezfurlong.org/wezterm/quickselect.html
 -- Ctrl-Shift-X to open Copy Mode https://wezfurlong.org/wezterm/copymode.html
 
--- https://wezfurlong.org/wezterm/config/lua/wezterm/on.html
 wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
-  -- Retrieve the current viewport's text.
-  -- Pass an optional number of lines (eg: 2000) to retrieve
-  -- that number of lines starting from the bottom of the viewport.
-  local scrollback = pane:get_lines_as_text(2000)
+  local scrollback = pane:get_logical_lines_as_text(pane:get_dimensions().scrollback_rows)
 
-  -- Create a temporary file to pass to vim
   local name = os.tmpname()
   local f = io.open(name, "w+")
   if f ~= nil then
@@ -104,24 +103,14 @@ wezterm.on("trigger-nvim-with-scrollback", function(window, pane)
     f:close()
   end
 
-  -- Open a new window running vim and tell it to open the file
   window:perform_action(
     wezterm.action({
       SpawnCommandInNewWindow = {
-        args = { "nvim", name },
+        args = { "nvim", "+normal G", name },
       },
     }),
     pane
   )
-
-  -- wait "enough" time for vim to read the file before we remove it.
-  -- The window creation and process spawn are asynchronous
-  -- wrt. running this script and are not awaitable, so we just pick
-  -- a number.  We don't strictly need to remove this file, but it
-  -- is nice to avoid cluttering up the temporary file directory
-  -- location.
-  wezterm.sleep_ms(2000)
-  os.remove(name)
 end)
 
 -- Ran into an issue in nightly build where Alt-` stopped working.
